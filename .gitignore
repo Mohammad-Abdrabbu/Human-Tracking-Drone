@@ -1,0 +1,25 @@
+# ROS 2 / colcon
+build/
+install/
+log/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+
+# Editors & OS
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Bags / large artifacts
+*.db3
+*.bag
+*.mcap
+*.mp4
+bags/
