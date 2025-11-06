@@ -1,0 +1,71 @@
+# default.yaml — proven SOFEX demo params (Nov 6, 2025)
+
+gp2_perception:
+  ros__parameters:
+
+    # YOLO node (E)
+    yolo_model_path: "/home/ramadan/gp2/models/yolov8n.pt"
+    yolo_conf: 0.25
+    yolo_imgsz: 512
+    yolo_publish_debug_image: false
+    yolo_image_topic: "/world/default/model/x500_mono_cam_0/link/camera_link/sensor/imager/image"
+
+    # ByteTrack node (M)
+    bt_detections_topic: "/perception/detections"
+    bt_tracks_topic: "/perception/tracks"
+    bt_seen_ids_topic: "/perception/seen_ids"
+    bt_diagnostics_topic: "/perception/diagnostics"
+    bt_mot_classes: ["person"]
+    bt_conf_thres: 0.35
+    bt_track_thresh: 0.50
+    bt_match_thresh: 0.65
+    bt_track_buffer: 60
+    bt_max_age_without_det: 60
+    bt_min_box_area_px: 400.0
+    bt_fps_min: 2.0
+    bt_debug_image_enable: false
+
+    # Follower node (C)
+    f_udp_url: "udpin://0.0.0.0:14540"
+    f_det_topic: "/dev/null"
+    f_tracks_topic: "/perception/tracks"
+    f_tracks_qos: "reliable"
+    f_require_target_selection: true
+
+    f_img_w: 1280
+    f_img_h: 960
+    f_hfov_deg: 100.0
+    f_invert_ex: false
+
+    f_k_yaw: 1.2
+    f_kd_yaw: 0.0
+    f_lpf_alpha: 0.20
+    f_deadzone: 0.08
+    f_center_hold_deg: 1.5
+    f_yawrate_max: 0.5            # rad/s
+    f_rate_limit_yaw: 60.0        # deg/s^2
+
+    f_stand_off_px: 300.0
+    f_max_close_px: 420.0
+    f_h_deadband_px: 10.0
+    f_kx: 0.012
+    f_vx_max: 0.5
+    f_rate_limit_vx: 0.10
+    f_gate_ex: 0.35
+    f_h_lpf_alpha: 0.20
+    f_allow_reverse: false
+
+    f_stale_s: 0.60
+    f_lock_k: 3
+    f_publish_rate_hz: 20.0
+    f_scan_when_no_target: false
+
+    f_do_auto_takeoff: true
+    f_auto_takeoff_alt_m: 2.5
+    f_takeoff_mode: "action"
+
+    f_alt_guard_enable: true
+    f_alt_max_m: 2.5
+    f_alt_deadband_m: 0.05
+    f_k_z_down: 0.8
+    f_vz_down_max: 0.7
