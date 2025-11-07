@@ -15,6 +15,9 @@ from mavsdk.telemetry import Health
 from mavsdk import System
 from mavsdk.offboard import OffboardError, VelocityBodyYawspeed
 
+# Geometry msgs
+from geometry_msgs.msg import PoseStamped
+
 
 def fov_ex(cx_px, img_w, hfov_rad, invert=False):
     ex = (cx_px - 0.5 * img_w) / max(1.0, 0.5 * img_w)   # [-1,1]
@@ -110,6 +113,13 @@ class FollowNode(Node):
         self._selected_id = None
         self._seen_ids = set()
 
+        self._guard_state = 'NORMAL'
+        qos_guard = QoSProfile(reliability=ReliabilityPolicy.RELIABLE, depth=1)
+        qos_guard.durability = rclpy.qos.DurabilityPolicy.TRANSIENT_LOCAL
+        self.create_subscription(String, '/gp2/guard/status', self._on_guard_status, qos_guard)
+
+
+
         # --- pubs/subs ---
         # Tracks QoS
         qos_tracks = QoSProfile(depth=20)
@@ -126,6 +136,20 @@ class FollowNode(Node):
         self.cmd_pub = self.create_publisher(Twist, "/gp2/follow/cmd_body", 10)
         self.hud_pub = self.create_publisher(String, "/gp2/follow/hud", 10)
         self.seen_pub = self.create_publisher(String, "/gp2/follow/seen_ids", 10)
+
+        qos_pose = QoSProfile(
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST,
+            depth=10
+        )
+        self.pose_pub = self.create_publisher(PoseStamped, '/gp2/vehicle/pose_local', qos_pose)
+
+        self._last_pose_pub_time = self.get_clock().now()
+
+        self.get_logger().info(
+            'Republishing MAVSDK local pose as ENU → /gp2/vehicle/pose_local '
+            '(frame_id=map). Mapping: x=east_m, y=north_m, z=-down_m'
+        )
 
         # Selection
         self.create_subscription(Int32, self.get_parameter('target_id_topic').value, self._on_target_select, QoSProfile(depth=10))
@@ -193,6 +217,8 @@ class FollowNode(Node):
                 except Exception:
                     chosen_h = None
 
+
+
         # Publish seen IDs for HUD
         ids_str = ",".join(str(i) for i in sorted(cur_ids))
         self.seen_pub.publish(String(data=f"ids={ids_str}" if ids_str else "ids="))
@@ -208,6 +234,27 @@ class FollowNode(Node):
                 self._lock_score = min(int(self.get_parameter('lock_k').value), self._lock_score + 1)
             else:
                 self._lock_score = max(0, self._lock_score - 1)
+
+    def _on_guard_status(self, msg: String):
+        self._guard_state = (msg.data or 'NORMAL').strip()
+
+    # --- NEW: Gate A helper (NED→ENU) ---
+    def publish_pose_local_from_ned(self, north_m: float, east_m: float, down_m: float):
+        now = self.get_clock().now()
+        # (optional) throttle to ~10–20 Hz if your control loop runs faster
+        if (now - self._last_pose_pub_time).nanoseconds < int(1e9 / 20):
+            return
+        self._last_pose_pub_time = now
+
+        ps = PoseStamped()
+        ps.header.stamp = now.to_msg()
+        ps.header.frame_id = 'map'  # ENU world frame
+        ps.pose.position.x = float(east_m)    # ENU X = East
+        ps.pose.position.y = float(north_m)   # ENU Y = North
+        ps.pose.position.z = float(-down_m)   # ENU Z = Up
+        # orientation not required by guard; keep identity
+        ps.pose.orientation.w = 1.0
+        self.pose_pub.publish(ps)
 
     # ---- MAVSDK worker (async)
     async def _async_mav(self):
@@ -226,9 +273,21 @@ class FollowNode(Node):
         async def _watch_pos():
             async for p in drone.telemetry.position():
                 self._rel_alt = float(p.relative_altitude_m)
+        
+        # --- NEW: local NED → ENU pose republisher (Gate A) ---
+        async def _watch_pvn():
+            async for pvn in drone.telemetry.position_velocity_ned():
+                try:
+                    n = float(pvn.position.north_m)
+                    e = float(pvn.position.east_m)
+                    d = float(pvn.position.down_m)
+                except Exception:
+                    continue
+                self.publish_pose_local_from_ned(n, e, d)
 
         watcher_ia  = asyncio.create_task(_watch_in_air())
         watcher_pos = asyncio.create_task(_watch_pos())
+        watcher_pvn = asyncio.create_task(_watch_pvn()) 
 
         # Wait connected
         async for s in drone.core.connection_state():
@@ -456,6 +515,13 @@ class FollowNode(Node):
             yaw_limited_deg = self._prev_yaw_deg + max(-max_step, min(max_step, yaw_cmd_deg - self._prev_yaw_deg))
             self._prev_yaw_deg = yaw_limited_deg
             yaw_final = math.radians(yaw_limited_deg)
+
+            # --- Geo-Guard clamp ---
+            if self._guard_state in ('GEOGUARD_HOLD', 'GEOGUARD_VIOLATION'):
+                vx = 0.0
+                if self._guard_state == 'GEOGUARD_VIOLATION':
+                    # optional: freeze slewing toward zero so we don't "spring" forward on release
+                    self._prev_vx = 0.0
 
             # Publish Twist (ROS) and send MAVSDK velocity (Body frame)
             tw = Twist()
