@@ -1,7 +1,16 @@
-# ROS 2 / colcon
+# ROS 2 / colcon (any workspace)
 build/
 install/
 log/
+**/build/
+**/install/
+**/log/
+
+# Local dev workspaces (don’t push these)
+ws/
+
+# PX4 checkout (clone from upstream, not stored here)
+third_party/PX4-Autopilot/
 
 # Python
 __pycache__/
@@ -23,3 +32,8 @@ Thumbs.db
 *.mcap
 *.mp4
 bags/
+
+# (Optional) If you don't want to commit YOLO weights / zips, uncomment:
+# models/*.pt
+# *.zip
+models/*.pt

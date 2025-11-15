@@ -1,0 +1,41 @@
+<sdf version="1.9">
+  <world name="default">
+    <!-- Garden (gz-sim 7/8) system plugins: use the C++ class names -->
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system"           name="gz::sim::systems::Sensors"/>
+
+    <!-- Simple environment -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/Ground Plane</uri>
+    </include>
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/Sun</uri>
+    </include>
+
+    <!-- Static camera -->
+    <model name="static_cam">
+      <static>true</static>
+      <pose>0 0 1.5 0 0 0</pose>
+      <link name="camera_link">
+        <sensor name="cam" type="camera">
+          <always_on>true</always_on>
+          <update_rate>15</update_rate>
+          <camera>
+            <horizontal_fov>1.047</horizontal_fov>
+            <image>
+              <width>640</width>
+              <height>480</height>
+              <format>R8G8B8</format>
+            </image>
+            <clip>
+              <near>0.1</near>
+              <far>100</far>
+            </clip>
+          </camera>
+
+          <visualize>true</visualize>
+        </sensor>
+      </link>
+    </model>
+  </world>
+</sdf>
