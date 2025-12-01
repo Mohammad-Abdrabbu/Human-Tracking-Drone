@@ -1,0 +1,413 @@
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #646cff;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: #535bf2;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: #646cff;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+
+  a:hover {
+    color: #747bff;
+  }
+
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+/* src/index.css */
+
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  color-scheme: dark;
+  color: #f9fafb;
+  background-color: #020617;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Mobile-first "phone" layout */
+.sahtd-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: radial-gradient(circle at top, #0f172a, #020617);
+}
+
+.sahtd-card {
+  width: 100%;
+  max-width: 420px;
+  /* like a phone screen */
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 1.25rem;
+  padding: 1.75rem 1.5rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.sahtd-title {
+  margin: 0 0 1.5rem;
+  font-size: 1.4rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sahtd-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sahtd-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.sahtd-input {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  background: rgba(15, 23, 42, 0.8);
+  color: #f9fafb;
+}
+
+.sahtd-input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.7);
+}
+
+.sahtd-button {
+  margin-top: 0.5rem;
+  border-radius: 999px;
+  border: none;
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #22c55e, #22d3ee);
+  color: #020617;
+}
+
+.sahtd-button:hover {
+  filter: brightness(1.05);
+}
+
+.sahtd-text {
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.sahtd-list {
+  margin: 0.5rem 0 0.5rem 1.2rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.sahtd-error {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: #f97373;
+}
+
+/* App layout tweaks */
+.sahtd-card-app {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sahtd-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.sahtd-button-outlined {
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.8);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: transparent;
+  color: #e5e7eb;
+  cursor: pointer;
+}
+
+.sahtd-button-outlined:hover {
+  background: rgba(15, 23, 42, 0.8);
+}
+
+/* State pill */
+.sahtd-state-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sahtd-pill {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 220px;
+  padding: 0.75rem 1rem;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Colors for different guard statuses */
+.sahtd-pill-normal {
+  background: linear-gradient(135deg, #22c55e, #22d3ee);
+  color: #020617;
+}
+
+.sahtd-pill-hold {
+  background: linear-gradient(135deg, #fbbf24, #fb923c);
+  color: #0f172a;
+}
+
+.sahtd-pill-violation {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #f9fafb;
+}
+
+.sahtd-pill-main {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sahtd-pill-sub {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.sahtd-state-meta {
+  font-size: 0.85rem;
+  color: #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sahtd-meta-label {
+  opacity: 0.8;
+}
+
+.sahtd-meta-value {
+  font-weight: 500;
+}
+
+.sahtd-text-section {
+  font-size: 0.85rem;
+  color: #cbd5f5;
+  line-height: 1.6;
+}
+
+.sahtd-subtitle {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.sahtd-alerts-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sahtd-alerts-list {
+  max-height: 220px;
+  /* mobile-friendly scroll area */
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sahtd-alert-item {
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sahtd-alert-main {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.sahtd-alert-badge {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Types – INFO/WARN/ERROR (match backend .type) */
+.sahtd-alert-info {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+
+.sahtd-alert-warn {
+  background: rgba(250, 204, 21, 0.2);
+  color: #facc15;
+}
+
+.sahtd-alert-error {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.sahtd-alert-message {
+  font-size: 0.85rem;
+}
+
+.sahtd-alert-meta {
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  opacity: 0.8;
+}
+
+.sahtd-alert-source {
+  font-style: italic;
+}
+
+.sahtd-alert-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.sahtd-text-muted {
+  opacity: 0.75;
+}
+
+.sahtd-controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sahtd-controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.sahtd-control-button {
+  flex: 1 1 45%;
+  min-width: 120px;
+  border-radius: 999px;
+  border: none;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: linear-gradient(135deg, #38bdf8, #22c55e);
+  color: #020617;
+}
+
+.sahtd-control-button:hover {
+  filter: brightness(1.05);
+}
+
+.sahtd-control-button-danger {
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  color: #f9fafb;
+}
+
+.sahtd-cmd-status {
+  font-size: 0.8rem;
+}
+
+.sahtd-cmd-status-sending {
+  color: #e5e7eb;
+}
+
+.sahtd-cmd-status-ok {
+  color: #4ade80;
+}
+
+.sahtd-cmd-status-error {
+  color: #f97373;
+}

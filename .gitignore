@@ -34,6 +34,25 @@ Thumbs.db
 bags/
 
 # (Optional) If you don't want to commit YOLO weights / zips, uncomment:
-# models/*.pt
-# *.zip
+*.zip
 models/*.pt
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+
+# Python Environments
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
