@@ -1,0 +1,19 @@
+# Geo-guard configuration (DRONE_KEEP_OUT polygon)
+
+geo_guard_node:
+  ros__parameters:
+    fence_mode: "DRONE_KEEP_OUT"   # later: "TARGET_KEEP_IN" if you implement S7
+
+    # Polygon vertices in ENU (x1, y1, x2, y2, ...)
+    # This matches your square: [-7, -7] → [7, -7] → [7, 7] → [-7, 7]
+    vertices: [-7.0, -7.0,  7.0, -7.0,  7.0, 7.0,  -7.0, 7.0]
+
+    # Margins and debouncing
+    soft_margin_m: 0.80
+    hard_margin_m: 0.30
+    debounce_samples: 3
+    min_hold_ms: 200
+
+    # Optional debug flags
+    enable_debug_logs: true
+    publish_debug_zone: false

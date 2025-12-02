@@ -1,0 +1,41 @@
+# Perception stack parameters (YOLO + ByteTrack MOT)
+
+yolo_node:
+  ros__parameters:
+    # Path to your YOLOv8n weights
+    model_path: "/home/ramadan/gp2/assets/weights/yolov8n.pt"
+
+    # Detection thresholds
+    conf_thres: 0.25        # detector confidence
+    iou_thres: 0.50         # NMS IoU threshold
+
+    # Image size (keep consistent with camera / Gazebo)
+    imgsz_w: 640
+    imgsz_h: 360
+
+    # Device: "cpu" or "cuda:0" if you have a GPU
+    device: "cpu"
+
+    # Only detect person class (COCO id 0)
+    class_filter: [0]
+
+    # Optional debug outputs
+    publish_debug_image: true
+    debug_fps_log: true
+
+bytetrack_node:
+  ros__parameters:
+    # ByteTrack tuning (see your bytetrack_v1 plan)
+    track_thresh: 0.5
+    match_thresh: 0.8
+    track_buffer: 30
+
+    # Extra MOT config (adjust to match your node's expectations)
+    min_box_area: 10.0
+    mot_fps: 15.0
+
+    # How long to keep lost tracks alive (frames)
+    max_age: 30
+
+    # Whether to log debug info
+    debug_tracks: true

@@ -6,8 +6,10 @@ log/
 **/install/
 **/log/
 
-# Local dev workspaces (don’t push these)
-ws/
+# Local dev workspaces - track source, ignore build artifacts
+# ws/ is commented out to allow tracking ROS packages in src/
+# Build artifacts are already ignored by build/, install/, log/ patterns above
+# ws/
 
 # PX4 checkout (clone from upstream, not stored here)
 third_party/PX4-Autopilot/
@@ -48,6 +50,8 @@ dist/
 venv/
 ENV/
 env/
+# Exception: allow our shell env script
+!env/sahtd_env.sh
 
 # Environment Variables
 .env

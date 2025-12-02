@@ -1,0 +1,65 @@
+# Scene A (Chase) — unified params for bridge→MOT→Follow
+# Applies to any node that declares these params.
+# We bridge the Harmonic camera to /camera/image_raw, run ByteTrack, then follow.
+# Stand-off ~300 px, smooth yaw, 20 Hz keepalive, auto-takeoff to 2.5 m.
+
+"/**":
+  ros__parameters:
+    # ---- Camera / Bridge target (ROS topic produced by ros_gz_image) ----
+    image_topic: "/camera/image_raw"
+
+    # ---- ByteTrack (detector+MOT inside bytetrack_node) ----
+    # Keep detector light and MOT stable; tuned for ~12–20 FPS
+    conf_thres: 0.30
+    nms_iou: 0.50
+    track_thresh: 0.50
+    match_thresh: 0.80
+    track_buffer: 30
+    detections_qos: "reliable"
+    debug_image_enable: false
+    frame_sync_max_dt_s: -1.0
+    # Published tracks topic (RELIABLE)
+    tracks_topic: "/perception/tracks"
+
+    # ---- Follower (MAVSDK Offboard; image-based) ----
+    udp_url: "udpin://0.0.0.0:14540"
+    tracks_qos: "reliable"
+    target_id_topic: "/perception/target_select"
+
+    # Match what ByteTrack publishes
+    # (leave the same unless you changed tracks_topic above)
+    # Note: some builds expect 'tracks_topic', others 'tracks'—we set the common one:
+    tracks: "/perception/tracks"
+    tracks_topic: "/perception/tracks"
+
+    # Camera geometry and stand-off in pixels
+    img_w: 1280
+    img_h: 960
+    stand_off_px: 300.0
+    max_close_px: 420.0
+
+    # Yaw via HFOV normalization; smooth & not twitchy
+    use_fov_yaw: true
+    hfov_deg: 100.0
+    k_yaw_fov: 1.0
+    yaw_deadzone: 0.08
+
+    # Forward control (vx) and rate limits
+    kx: 0.012
+    vx_max: 0.5
+    yawrate_max: 0.6
+    rate_limit_vx: 0.10
+    rate_limit_yaw: 0.25
+
+    # Robustness / hold logic
+    stale_stop_s: 0.60
+    aim_first: true
+    center_lock_k: 3
+    freeze_strafe_in_aim: true
+    publish_zero_when_waiting: true
+    scan_when_no_target: false
+
+    # Takeoff automation (action mode)
+    do_auto_takeoff: true
+    takeoff_mode: "action"
+    auto_takeoff_alt_m: 2.5

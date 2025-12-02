@@ -1,0 +1,38 @@
+follow_node:
+  ros__parameters:
+    # Image size (should match camera/YOLO config)
+    img_w: 1280
+    img_h: 960
+
+    # Stand-off / geometry
+    stand_off_px: 300.0
+    max_close_px: 420.0
+
+    # Locking / hysteresis
+    lock_k_frames: 5.0
+    no_track_hold_s: 10.0
+
+    # Smoothing + deadzones
+    lpf_alpha: 0.2
+    yaw_deadzone: 0.10
+    gate_ex: 0.35
+
+    # Rate limits
+    rate_limit_vx: 0.10
+    rate_limit_yaw: 0.10
+
+    # Gains
+    kx: 0.012
+    kyaw: 0.7
+
+    # Command caps
+    vx_max: 0.5
+    yawrate_max: 0.5
+
+    # Takeoff / offboard behaviour
+    do_auto_takeoff: true
+    takeoff_mode: "action"        # or "offboard" if you later change it
+    auto_takeoff_alt_m: 2.5
+
+    # QoS / publishing behaviour
+    publish_zero_when_waiting: true
