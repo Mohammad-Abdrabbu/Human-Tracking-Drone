@@ -5,7 +5,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Empty
 from vision_msgs.msg import Detection2DArray
 
 from .bytetrack_core import ByteTrackCore, Det, Track
@@ -128,6 +128,12 @@ class ByteTrackNode(Node):
         self.pub_seen = self.create_publisher(String, self.seen_ids_topic, qos_pub_rel)
         self.pub_diag = self.create_publisher(String, self.diagnostics_topic, qos_pub_rel_latched)
         self.sub = self.create_subscription(Detection2DArray, self.detections_topic, self._cb_dets, qos_sub)
+        self.reset_sub = self.create_subscription(
+            Empty,
+            '/perception/reset_tracks',
+            self._on_reset_tracks,
+            10,
+        )
 
         # --- State ---
         self.mode = "CORE"  # "CORE" or "DEGRADED"
@@ -162,6 +168,21 @@ class ByteTrackNode(Node):
             if self.mode != "CORE" and self._ema_fps and self._ema_fps >= self.fps_min:
                 self.mode = "CORE"
                 self._health("GREEN", f"Detector FPS recovered ({self._ema_fps:.1f} >= {self.fps_min}); returning to ByteTrack core.")
+
+    def _on_reset_tracks(self, msg: Empty):
+        """Reset ByteTrack internal state and ID counters."""
+        # Reset core tracker by creating a new instance
+        self.core = ByteTrackCore(
+            track_thresh=self.core.track_thresh,
+            conf_low=0.10,
+            match_thresh=self.core.match_thresh,
+            track_buffer=self.core.track_buffer,
+            max_age_without_det=self.core.max_age_without_det,
+            min_box_area_px=self.core.min_box_area_px
+        )
+        # Reset fallback tracker
+        self.fallback.prev = []
+        self.get_logger().info('[reset] ByteTrack state and ID counters cleared')
 
     def _cb_dets(self, msg: Detection2DArray):
         dets: List[Det] = self.det_adapter.msg_to_contract(msg)

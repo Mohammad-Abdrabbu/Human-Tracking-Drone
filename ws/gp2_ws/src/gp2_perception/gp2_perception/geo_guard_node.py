@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy, DurabilityPolicy
 from geometry_msgs.msg import PoseStamped, Twist
-from std_msgs.msg import String
+from std_msgs.msg import String, Empty
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
 
 def point_in_polygon(x: float, y: float, verts: List[Tuple[float,float]]) -> bool:
@@ -90,6 +90,14 @@ class GeoGuardNode(Node):
         self.reason_pub = self.create_publisher(String, '/gp2/guard/reason', q_rel)
         self.cmd_pub = self.create_publisher(Twist, '/gp2/follow/cmd_body', q_rel)  # override only on HOLD/VIOLATION
 
+        # Reset subscription
+        self.reset_sub = self.create_subscription(
+            Empty,
+            '/gp2/guard/reset',
+            self._on_guard_reset,
+            10,
+        )
+
         # --- State ---
         self._last_cmd: Optional[Twist] = None
         self._state = 'NORMAL'
@@ -124,6 +132,14 @@ class GeoGuardNode(Node):
             self._state = new_state
             self._last_state_change = self.get_clock().now()
             self._publish_status(new_state, reason)
+
+    def _on_guard_reset(self, msg: Empty):
+        """Reset geo-guard state to NORMAL."""
+        self._state = 'NORMAL'
+        self._deb_hist = []
+        self._last_cmd = None
+        self._publish_status('NORMAL', 'manual_reset')
+        self.get_logger().info('[reset] geo_guard_node state reset to NORMAL')
 
     def _stable_vote(self, label: str) -> Optional[str]:
         self._deb_hist.append(label)

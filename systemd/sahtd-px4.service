@@ -1,0 +1,12 @@
+[Unit]
+Description=SAHTD PX4 SITL + Gazebo (x500_mono_cam)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/ramadan/gp2/scripts/sahtd_px4.sh
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

@@ -8,7 +8,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
-from std_msgs.msg import String, Int32
+from std_msgs.msg import String, Int32, Empty
 from geometry_msgs.msg import Twist
 from vision_msgs.msg import Detection2DArray
 from mavsdk.telemetry import Health
@@ -168,6 +168,14 @@ class FollowNode(Node):
         # Tracks
         self.create_subscription(Detection2DArray, self.get_parameter('tracks_topic').value, self._on_tracks, qos_tracks)
 
+        # Reset subscription
+        self.reset_sub = self.create_subscription(
+            Empty,
+            '/gp2/follow/reset',
+            self._on_follow_reset,
+            10,
+        )
+
         self.get_logger().info("FollowNode (rotate+advance) ready @20 Hz with altitude guard.")
         threading.Thread(target=self._mav_task, daemon=True).start()
 
@@ -245,6 +253,22 @@ class FollowNode(Node):
 
     def _on_guard_status(self, msg: String):
         self._guard_state = (msg.data or 'NORMAL').strip()
+
+    def _on_follow_reset(self, msg: Empty):
+        """Reset follower state without tearing down MAVSDK connection."""
+        with self._lock:
+            self._selected_id = None
+            self._lock_score = 0
+            self._last_cx = None
+            self._last_h = None
+            self._h_f = 0.0
+            self._prev_vx = 0.0
+            self._ex_f = 0.0
+            self._prev_ex_f = 0.0
+            self._prev_yaw_deg = 0.0
+            self._last_det_ts = 0.0
+            self._fsm = S.SEARCH
+        self.get_logger().warn('[reset] follow_node state reset to SEARCH; target history cleared')
 
     # --- NEW: Gate A helper (NED→ENU) ---
     def publish_pose_local_from_ned(self, north_m: float, east_m: float, down_m: float):
