@@ -4,9 +4,10 @@ follow_node:
     img_w: 1280
     img_h: 960
 
-    # Stand-off / geometry
-    stand_off_px: 300.0
-    max_close_px: 420.0
+    # Stand-off / geometry (CALIBRATED 2025-12-09 from 9 W1 bags)
+    # Based on 1529 "good-near" samples: median=167.2px, P75=198.8px
+    stand_off_px: 167.0    # was 300.0 - now set to achievable median h_f
+    max_close_px: 279.0    # was 420.0 - now P75 + 80px margin
 
     # Locking / hysteresis
     lock_k_frames: 5.0
@@ -14,19 +15,19 @@ follow_node:
 
     # Smoothing + deadzones
     lpf_alpha: 0.2
-    yaw_deadzone: 0.10
+    yaw_deadzone: 0.03  # W1 tuned: reduced from 0.10 (5.7°) to 0.03 (1.7°)
     gate_ex: 0.35
 
     # Rate limits
-    rate_limit_vx: 0.10
-    rate_limit_yaw: 0.10
+    rate_limit_vx: 0.15  # W1 tuned: increased from 0.10 for faster acceleration
+    rate_limit_yaw: 0.15  # W1 tuned: increased from 0.10 for faster yaw response
 
     # Gains
     kx: 0.012
     kyaw: 0.7
 
     # Command caps
-    vx_max: 0.5
+    vx_max: 0.8  # W1 tuned: increased from 0.5 to prevent saturation
     yawrate_max: 0.5
 
     # Takeoff / offboard behaviour
@@ -36,3 +37,20 @@ follow_node:
 
     # QoS / publishing behaviour
     publish_zero_when_waiting: true
+
+    # Bbox velocity estimation (stationary target detection)
+    h_velocity_lpf_alpha: 0.15          # LPF for velocity estimation (0-1, lower=smoother)
+    stationary_threshold_px_s: 8.0      # below this velocity, target is "stationary"
+    stationary_stand_off_boost: 80.0    # extra stand-off (px) when target stationary
+
+    # Proximity brake zone (force stop near stationary target)
+    prox_brake_enable: true             # enable proximity braking
+    prox_brake_hf_thresh: 200.0         # trigger when h_f > this (px)
+    prox_brake_vx_max: 0.10             # max vx when in brake zone (m/s)
+    prox_brake_decel_rate: 0.50         # emergency deceleration (m/s²) - INCREASED
+
+    # Progressive speed control (reduce speed as target gets closer)
+    progressive_speed_enable: true      # enable progressive vx_max
+    progressive_hf_start: 100.0         # h_f where speed reduction starts (px)
+    progressive_hf_full: 300.0          # h_f where speed is minimum (px)
+    progressive_vx_min: 0.15            # minimum vx_max when very close (m/s)

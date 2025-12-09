@@ -19,7 +19,7 @@
 
 <script>
   <loop>true</loop>
-  <delay_start>20.0</delay_start>
+  <delay_start>40.0</delay_start>
   <auto_start>true</auto_start>
 
   <!-- Start ~3 m ahead, walk +X, small right (−Y) bend, left back, then straight -->

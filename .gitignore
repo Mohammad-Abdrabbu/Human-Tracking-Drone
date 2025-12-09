@@ -60,3 +60,6 @@ env/
 
 # OS
 .DS_Store
+
+# Documentation
+docs/

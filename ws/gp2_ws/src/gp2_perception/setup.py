@@ -29,8 +29,11 @@ setup(
             'follow_node = gp2_perception.follow_node:main',
             'detect_rotate = gp2_detect_rotate.detect_rotate_node:main', 
             'geo_guard_node = gp2_perception.geo_guard_node:main',
-            'actor_pose_stub = gp2_perception.actor_pose_stub_node:main',
-
+            'actor_pose_selector_node = gp2_perception.actor_pose_selector_node:main',
+            'target_guard_node = gp2_perception.target_guard_node:main',
+            'target_viz_node = gp2_perception.target_viz_node:main',
+            'target_select_helper_node = gp2_perception.target_select_helper_node:main',
         ],},
+
 
 )

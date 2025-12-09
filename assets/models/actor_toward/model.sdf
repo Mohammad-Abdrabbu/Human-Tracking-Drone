@@ -1,0 +1,66 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <actor name="actor_toward">
+    <!-- spawn a little above ground to avoid clipping -->
+    <pose>0 0 1.0 0 0 0</pose>
+
+    <skin>
+      <!-- use local mesh, not remote URL -->
+      <filename>meshes/walk.dae</filename>
+      <scale>1.0</scale>
+    </skin>
+
+    <animation name="walk">
+      <!-- same local mesh -->
+      <filename>meshes/walk.dae</filename>
+      <scale>1.0</scale>
+      <interpolate_x>true</interpolate_x>
+    </animation>
+
+<script>
+  <loop>true</loop>
+  <delay_start>20.0</delay_start>
+  <auto_start>true</auto_start>
+
+  <!-- T1: Walk TOWARD the drone - starts far (x=6), approaches to x=0.5 -->
+  <trajectory id="0" type="walking">
+    <!-- Start far from drone -->
+    <waypoint>
+      <time>0.0</time>
+      <pose>6.0 0.0 0.02 0 0 3.14159</pose>  <!-- facing -X (toward drone) -->
+    </waypoint>
+
+    <!-- Approach halfway -->
+    <waypoint>
+      <time>8.0</time>
+      <pose>3.0 0.0 0.02 0 0 3.14159</pose>
+    </waypoint>
+
+    <!-- Near drone -->
+    <waypoint>
+      <time>14.0</time>
+      <pose>0.5 0.0 0.02 0 0 3.14159</pose>
+    </waypoint>
+
+    <!-- Small pause, then turn around and walk back -->
+    <waypoint>
+      <time>18.0</time>
+      <pose>0.5 0.0 0.02 0 0 0.0</pose>  <!-- turn to face +X -->
+    </waypoint>
+
+    <!-- Walk back to start -->
+    <waypoint>
+      <time>26.0</time>
+      <pose>6.0 0.0 0.02 0 0 0.0</pose>
+    </waypoint>
+
+    <!-- Turn around again for loop -->
+    <waypoint>
+      <time>30.0</time>
+      <pose>6.0 0.0 0.02 0 0 3.14159</pose>
+    </waypoint>
+  </trajectory>
+</script>
+
+  </actor>
+</sdf>

@@ -72,6 +72,23 @@ class FollowNode(Node):
         self.declare_parameter('h_lpf_alpha', 0.20)     # bbox height LPF (0..1)
         self.declare_parameter('allow_reverse', False)  # if False, never command negative vx
 
+        # --- BBOX VELOCITY ESTIMATION (for stationary target detection) ---
+        self.declare_parameter('h_velocity_lpf_alpha', 0.15)     # LPF for bbox velocity estimation
+        self.declare_parameter('stationary_threshold_px_s', 8.0) # below this, target considered stationary
+        self.declare_parameter('stationary_stand_off_boost', 80.0)  # extra stand-off (px) when target stationary
+
+        # --- PROXIMITY BRAKE ZONE (force stop near stationary target) ---
+        self.declare_parameter('prox_brake_enable', True)        # enable proximity braking
+        self.declare_parameter('prox_brake_hf_thresh', 200.0)    # trigger when h_f > this (px)
+        self.declare_parameter('prox_brake_vx_max', 0.10)        # max vx when in brake zone (m/s)
+        self.declare_parameter('prox_brake_decel_rate', 0.50)    # emergency deceleration (m/s²) - INCREASED
+
+        # --- PROGRESSIVE SPEED CONTROL (reduce speed as target gets closer) ---
+        self.declare_parameter('progressive_speed_enable', True)  # enable progressive vx_max
+        self.declare_parameter('progressive_hf_start', 100.0)     # h_f where speed reduction starts (px)
+        self.declare_parameter('progressive_hf_full', 300.0)      # h_f where speed is minimum (px)
+        self.declare_parameter('progressive_vx_min', 0.15)        # minimum vx_max when very close (m/s)
+
         # --- timing / behavior ---
         self.declare_parameter('stale_s', 0.75)
         self.declare_parameter('lock_k', 3)
@@ -117,6 +134,13 @@ class FollowNode(Node):
         self._last_h  = None
         self._h_f     = 0.0       # LPF’d bbox height
         self._prev_vx = 0.0
+
+        # Bbox velocity estimation state
+        self._h_f_prev = 0.0              # previous filtered bbox height
+        self._h_velocity = 0.0            # smoothed bbox height velocity (px/s)
+        self._h_velocity_update_time = 0.0  # last time velocity was updated
+        self._target_stationary = False   # is target considered stationary?
+        self._prox_brake_active = False   # is proximity brake currently active?
 
         self._selected_id = None
         self._seen_ids = set()
@@ -263,6 +287,11 @@ class FollowNode(Node):
             self._last_h = None
             self._h_f = 0.0
             self._prev_vx = 0.0
+            self._h_f_prev = 0.0
+            self._h_velocity = 0.0
+            self._h_velocity_update_time = 0.0
+            self._target_stationary = False
+            self._prox_brake_active = False
             self._ex_f = 0.0
             self._prev_ex_f = 0.0
             self._prev_yaw_deg = 0.0
@@ -507,7 +536,61 @@ class FollowNode(Node):
                 if cx is not None and h is not None and age <= stale_s and locked:
                     # height LPF
                     self._h_f = (1.0 - h_alpha) * self._h_f + h_alpha * h
-                    eR = stand_off_px - self._h_f
+
+                    # --- BBOX VELOCITY ESTIMATION ---
+                    # Compute time delta since last update
+                    now_sec = time.time()
+                    h_vel_dt = now_sec - self._h_velocity_update_time if self._h_velocity_update_time > 0 else dt
+                    h_vel_dt = max(0.01, min(0.5, h_vel_dt))  # clamp to avoid crazy values
+
+                    # Compute instantaneous bbox velocity (px/s)
+                    if self._h_f_prev > 0:
+                        h_velocity_raw = (self._h_f - self._h_f_prev) / h_vel_dt
+                    else:
+                        h_velocity_raw = 0.0
+
+                    # LPF the velocity
+                    h_vel_alpha = float(self.get_parameter('h_velocity_lpf_alpha').value)
+                    self._h_velocity = (1.0 - h_vel_alpha) * self._h_velocity + h_vel_alpha * h_velocity_raw
+
+                    # Update state for next iteration
+                    self._h_f_prev = self._h_f
+                    self._h_velocity_update_time = now_sec
+
+                    # Determine if target is stationary
+                    stationary_thresh = float(self.get_parameter('stationary_threshold_px_s').value)
+                    self._target_stationary = abs(self._h_velocity) < stationary_thresh
+
+                    # ADAPTIVE STAND-OFF: increase when target is stationary
+                    if self._target_stationary:
+                        boost = float(self.get_parameter('stationary_stand_off_boost').value)
+                        effective_stand_off = stand_off_px + boost
+                    else:
+                        effective_stand_off = stand_off_px
+
+                    eR = effective_stand_off - self._h_f
+
+                    # --- PROGRESSIVE SPEED CONTROL ---
+                    # Reduce vx_max as target gets closer (based on h_f)
+                    progressive_enable = bool(self.get_parameter('progressive_speed_enable').value)
+                    if progressive_enable:
+                        hf_start = float(self.get_parameter('progressive_hf_start').value)
+                        hf_full = float(self.get_parameter('progressive_hf_full').value)
+                        vx_min = float(self.get_parameter('progressive_vx_min').value)
+                        
+                        if self._h_f <= hf_start:
+                            # Far away - full speed
+                            vx_max_progressive = vx_max
+                        elif self._h_f >= hf_full:
+                            # Very close - minimum speed
+                            vx_max_progressive = vx_min
+                        else:
+                            # Progressive scaling between start and full
+                            # As h_f goes from hf_start to hf_full, vx_max goes from vx_max to vx_min
+                            ratio = (self._h_f - hf_start) / (hf_full - hf_start)
+                            vx_max_progressive = vx_max - (vx_max - vx_min) * ratio
+                    else:
+                        vx_max_progressive = vx_max
 
                     centered_ok = abs(self._ex_f) <= gate_ex
                     want_forward = centered_ok
@@ -518,20 +601,42 @@ class FollowNode(Node):
                         if self._h_f >= max_close_px:
                             # too close -> do not command positive vx
                             if allow_reverse and eR < -h_deadband_px:
-                                vx_des = max(-vx_max, min(0.0, kx * eR))
+                                vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
                             else:
                                 vx_des = 0.0
                         else:
-                            # normal stand-off controller
+                            # normal stand-off controller with progressive vx_max
                             if abs(eR) <= h_deadband_px:
                                 vx_des = 0.0
                             else:
                                 vx_des = max(0.0, kx * eR)  # forward only
-                                vx_des = min(vx_des, vx_max)
+                                vx_des = min(vx_des, vx_max_progressive)  # USE PROGRESSIVE MAX
                     # slew limit vx
                     max_dv = rate_limit_vx * dt
                     vx_limited = self._prev_vx + max(-max_dv, min(max_dv, vx_des - self._prev_vx))
                     vx_limited = max(-vx_max, min(vx_limited, vx_max)) if allow_reverse else max(0.0, min(vx_limited, vx_max))
+
+                    # --- PROXIMITY BRAKE ZONE ---
+                    # Force hard brake when stationary target is close
+                    prox_brake_enable = bool(self.get_parameter('prox_brake_enable').value)
+                    prox_brake_hf_thresh = float(self.get_parameter('prox_brake_hf_thresh').value)
+                    prox_brake_vx_max = float(self.get_parameter('prox_brake_vx_max').value)
+                    prox_brake_decel_rate = float(self.get_parameter('prox_brake_decel_rate').value)
+
+                    self._prox_brake_active = False
+                    # FIX: Removed self._target_stationary requirement
+                    # h_velocity includes drone motion, not just target motion
+                    # So we brake based on proximity alone (h_f > threshold)
+                    if prox_brake_enable and self._h_f > prox_brake_hf_thresh:
+                        self._prox_brake_active = True
+                        # Apply emergency braking with faster decel rate
+                        if vx_limited > prox_brake_vx_max:
+                            prox_decel = prox_brake_decel_rate * dt
+                            vx_limited = max(prox_brake_vx_max, vx_limited - prox_decel)
+                        else:
+                            # Already slow, clamp to prox_brake_vx_max
+                            vx_limited = min(vx_limited, prox_brake_vx_max)
+
                     vx = vx_limited
                     self._prev_vx = vx_limited
                 else:
@@ -597,10 +702,20 @@ class FollowNode(Node):
             self._loop_dt_ema = 0.9 * self._loop_dt_ema + 0.1 * loop_dt
             loop_hz = 1.0 / self._loop_dt_ema
 
+            # Compute effective eR for HUD (with stationary boost if applicable)
+            if self._target_stationary:
+                boost = float(self.get_parameter('stationary_stand_off_boost').value)
+                hud_eR = (stand_off_px + boost) - self._h_f
+            else:
+                hud_eR = stand_off_px - self._h_f
+
+            stat_flag = 'S' if self._target_stationary else 'M'  # S=stationary, M=moving
+            brake_flag = 'PB' if self._prox_brake_active else ''  # PB=proximity brake
+
             hud = (
                 f"{self._fsm.name} ex_deg={'nan' if 'ex_deg' not in locals() else f'{ex_deg:+.1f}'} "
                 f"yaw={yaw_limited_deg:+.1f}deg/s "
-                f"h_f={self._h_f:.1f}px eR={(stand_off_px - self._h_f):+.1f}px vx={vx:+.2f}m/s "
+                f"h_f={self._h_f:.1f}px eR={hud_eR:+.1f}px vx={vx:+.2f}m/s h_vel={self._h_velocity:+.1f}px/s[{stat_flag}]{brake_flag} "
                 f"lock={lock_score}/{l_th} age={age:.2f}s hz={loop_hz:.1f}"
                 f" alt={self._rel_alt:.2f}m"
             )
