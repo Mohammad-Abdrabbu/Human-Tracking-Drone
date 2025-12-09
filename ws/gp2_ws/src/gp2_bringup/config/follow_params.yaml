@@ -54,3 +54,15 @@ follow_node:
     progressive_hf_start: 100.0         # h_f where speed reduction starts (px)
     progressive_hf_full: 300.0          # h_f where speed is minimum (px)
     progressive_vx_min: 0.15            # minimum vx_max when very close (m/s)
+
+    # Three-zone control (Step 1 - FAR/HOVER/NEAR)
+    # Derived from W1_standoff_calibrated analysis: 104 hover samples
+    zone_hover_lower_px: 150.0          # Below this = FAR zone
+    zone_hover_upper_px: 185.0          # Above this (but below near) = transition
+    zone_near_px: 220.0                 # Above this = NEAR zone (no positive vx)
+    zone_hover_yaw_deg: 4.0             # Yaw error must be < this to enter HOVER
+    zone_hover_eR_thresh: 20.0          # |eR| must be < this to enter HOVER (FIX)
+
+    # Altitude hold (FIX for altitude drops)
+    alt_hold_enable: true
+    alt_hold_m: 2.5                     # Maintain 2.5m altitude during follow

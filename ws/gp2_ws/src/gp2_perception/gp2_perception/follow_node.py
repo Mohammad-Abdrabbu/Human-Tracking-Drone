@@ -89,6 +89,13 @@ class FollowNode(Node):
         self.declare_parameter('progressive_hf_full', 300.0)      # h_f where speed is minimum (px)
         self.declare_parameter('progressive_vx_min', 0.15)        # minimum vx_max when very close (m/s)
 
+        # --- THREE-ZONE CONTROL (Step 1 - FAR/HOVER/NEAR) ---
+        self.declare_parameter('zone_hover_lower_px', 150.0)      # Below this = FAR
+        self.declare_parameter('zone_hover_upper_px', 185.0)      # Above this (but below near) = transition
+        self.declare_parameter('zone_near_px', 220.0)             # Above this = NEAR (no positive vx)
+        self.declare_parameter('zone_hover_yaw_deg', 4.0)         # Yaw error must be < this for HOVER
+        self.declare_parameter('zone_hover_eR_thresh', 20.0)      # |eR| must be < this for HOVER
+
         # --- timing / behavior ---
         self.declare_parameter('stale_s', 0.75)
         self.declare_parameter('lock_k', 3)
@@ -141,6 +148,7 @@ class FollowNode(Node):
         self._h_velocity_update_time = 0.0  # last time velocity was updated
         self._target_stationary = False   # is target considered stationary?
         self._prox_brake_active = False   # is proximity brake currently active?
+        self._zone = "FAR"                # current zone: FAR, HOV, NEAR
 
         self._selected_id = None
         self._seen_ids = set()
@@ -292,6 +300,7 @@ class FollowNode(Node):
             self._h_velocity_update_time = 0.0
             self._target_stationary = False
             self._prox_brake_active = False
+            self._zone = "FAR"
             self._ex_f = 0.0
             self._prev_ex_f = 0.0
             self._prev_yaw_deg = 0.0
@@ -592,50 +601,87 @@ class FollowNode(Node):
                     else:
                         vx_max_progressive = vx_max
 
+                    # --- THREE-ZONE CLASSIFICATION (Step 1) ---
+                    zone_hover_lower = float(self.get_parameter('zone_hover_lower_px').value)
+                    zone_hover_upper = float(self.get_parameter('zone_hover_upper_px').value)
+                    zone_near = float(self.get_parameter('zone_near_px').value)
+                    zone_hover_yaw_deg = float(self.get_parameter('zone_hover_yaw_deg').value)
+                    zone_hover_yaw_rad = math.radians(zone_hover_yaw_deg)
+                    zone_hover_eR_thresh = float(self.get_parameter('zone_hover_eR_thresh').value)
+                    
+                    # Get current yaw error for zone classification
+                    ex_rad_for_zone = abs(self._ex_f * math.pi)  # _ex_f is normalized [-1,1]
+                    in_hover_yaw = ex_rad_for_zone < zone_hover_yaw_rad
+                    
+                    # FIX: Also require eR to be small for HOVER
+                    # This prevents hovering when target walks away (high positive eR)
+                    in_hover_eR = abs(eR) < zone_hover_eR_thresh
+                    
+                    # Zone classification with precedence: NEAR > HOV > FAR
+                    if self._h_f > zone_near:
+                        self._zone = "NEAR"
+                    elif zone_hover_lower <= self._h_f <= zone_hover_upper and in_hover_yaw and in_hover_eR:
+                        self._zone = "HOV"
+                    else:
+                        self._zone = "FAR"
+
                     centered_ok = abs(self._ex_f) <= gate_ex
                     want_forward = centered_ok
 
                     vx_des = 0.0
-                    if want_forward:
-                        # close-range clamp: never push closer if already "too close"
-                        if self._h_f >= max_close_px:
-                            # too close -> do not command positive vx
-                            if allow_reverse and eR < -h_deadband_px:
-                                vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
-                            else:
-                                vx_des = 0.0
+                    
+                    # --- ZONE-AWARE VX CONTROL ---
+                    if self._zone == "HOV":
+                        # HOVER zone: explicitly set vx = 0 (sweet spot)
+                        vx_des = 0.0
+                    elif self._zone == "NEAR":
+                        # NEAR zone: never allow positive vx
+                        # For now, just clamp to 0 (back-off in later step)
+                        if allow_reverse and eR < -h_deadband_px:
+                            vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
                         else:
-                            # normal stand-off controller with progressive vx_max
-                            if abs(eR) <= h_deadband_px:
-                                vx_des = 0.0
+                            vx_des = 0.0
+                    else:
+                        # FAR zone (or transition): normal proportional control
+                        if want_forward:
+                            if self._h_f >= max_close_px:
+                                # too close -> do not command positive vx
+                                if allow_reverse and eR < -h_deadband_px:
+                                    vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
+                                else:
+                                    vx_des = 0.0
                             else:
-                                vx_des = max(0.0, kx * eR)  # forward only
-                                vx_des = min(vx_des, vx_max_progressive)  # USE PROGRESSIVE MAX
+                                # normal stand-off controller with progressive vx_max
+                                if abs(eR) <= h_deadband_px:
+                                    vx_des = 0.0
+                                else:
+                                    vx_des = max(0.0, kx * eR)  # forward only
+                                    vx_des = min(vx_des, vx_max_progressive)
+
                     # slew limit vx
                     max_dv = rate_limit_vx * dt
                     vx_limited = self._prev_vx + max(-max_dv, min(max_dv, vx_des - self._prev_vx))
                     vx_limited = max(-vx_max, min(vx_limited, vx_max)) if allow_reverse else max(0.0, min(vx_limited, vx_max))
 
-                    # --- PROXIMITY BRAKE ZONE ---
-                    # Force hard brake when stationary target is close
+                    # --- PROXIMITY BRAKE ZONE (emergency safety layer) ---
                     prox_brake_enable = bool(self.get_parameter('prox_brake_enable').value)
                     prox_brake_hf_thresh = float(self.get_parameter('prox_brake_hf_thresh').value)
                     prox_brake_vx_max = float(self.get_parameter('prox_brake_vx_max').value)
                     prox_brake_decel_rate = float(self.get_parameter('prox_brake_decel_rate').value)
 
                     self._prox_brake_active = False
-                    # FIX: Removed self._target_stationary requirement
-                    # h_velocity includes drone motion, not just target motion
-                    # So we brake based on proximity alone (h_f > threshold)
                     if prox_brake_enable and self._h_f > prox_brake_hf_thresh:
                         self._prox_brake_active = True
-                        # Apply emergency braking with faster decel rate
+                        # Apply emergency braking
                         if vx_limited > prox_brake_vx_max:
                             prox_decel = prox_brake_decel_rate * dt
                             vx_limited = max(prox_brake_vx_max, vx_limited - prox_decel)
                         else:
-                            # Already slow, clamp to prox_brake_vx_max
                             vx_limited = min(vx_limited, prox_brake_vx_max)
+                    
+                    # NEAR zone final enforcement: never positive vx
+                    if self._zone == "NEAR":
+                        vx_limited = min(vx_limited, 0.0)
 
                     vx = vx_limited
                     self._prev_vx = vx_limited
@@ -715,7 +761,8 @@ class FollowNode(Node):
             hud = (
                 f"{self._fsm.name} ex_deg={'nan' if 'ex_deg' not in locals() else f'{ex_deg:+.1f}'} "
                 f"yaw={yaw_limited_deg:+.1f}deg/s "
-                f"h_f={self._h_f:.1f}px eR={hud_eR:+.1f}px vx={vx:+.2f}m/s h_vel={self._h_velocity:+.1f}px/s[{stat_flag}]{brake_flag} "
+                f"h_f={self._h_f:.1f}px eR={hud_eR:+.1f}px vx={vx:+.2f}m/s "
+                f"Z={self._zone} [{stat_flag}]{brake_flag} "
                 f"lock={lock_score}/{l_th} age={age:.2f}s hz={loop_hz:.1f}"
                 f" alt={self._rel_alt:.2f}m"
             )
