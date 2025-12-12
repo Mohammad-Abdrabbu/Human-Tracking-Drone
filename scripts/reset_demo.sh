@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
 # Load SAHTD environment (ROS 2, Gazebo, workspaces)
-source "$HOME/gp2/env/sahtd_env.sh"
+source "$SAHTD_ROOT/env/sahtd_env.sh"
 
 echo "[reset_demo] Publishing reset messages..."
 

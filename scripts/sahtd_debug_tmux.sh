@@ -26,7 +26,9 @@ set -e
 
 SESSION="sahtd_debug"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GP2_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Resolve SAHTD_ROOT relative to this script (scripts/sahtd_debug_tmux.sh -> ..)
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
 
 # Check if tmux is installed
 if ! command -v tmux &> /dev/null; then
@@ -43,7 +45,7 @@ fi
 echo "Creating new tmux session '$SESSION' for Lane B1 debug..."
 
 # Source environment (we'll do this in each pane)
-ENV_SCRIPT="$GP2_ROOT/env/sahtd_env.sh"
+ENV_SCRIPT="$SAHTD_ROOT/env/sahtd_env.sh"
 if [ ! -f "$ENV_SCRIPT" ]; then
     echo "Error: Environment script not found: $ENV_SCRIPT"
     exit 1
@@ -53,7 +55,7 @@ fi
 tmux new-session -d -s "$SESSION" -n "SAHTD-Debug"
 
 # Pane 0: PX4 + Gazebo
-tmux send-keys -t "$SESSION:0.0" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.0" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.0" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.0" "echo '=== Lane B1: Starting PX4 + Gazebo ===' && sleep 1" C-m
 tmux send-keys -t "$SESSION:0.0" "./scripts/sahtd_px4.sh" C-m
@@ -62,7 +64,7 @@ tmux send-keys -t "$SESSION:0.0" "./scripts/sahtd_px4.sh" C-m
 tmux split-window -h -t "$SESSION:0"
 
 # Pane 1: ROS2 graph
-tmux send-keys -t "$SESSION:0.1" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.1" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.1" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.1" "echo '=== Lane B1: Waiting 10s for PX4/Gazebo to stabilize ===' && sleep 10" C-m
 tmux send-keys -t "$SESSION:0.1" "echo '=== Lane B1: Starting ROS2 graph ===' && sleep 1" C-m
@@ -73,7 +75,7 @@ tmux select-pane -t "$SESSION:0.1"
 tmux split-window -v -t "$SESSION:0.1"
 
 # Pane 2: Follow HUD monitor
-tmux send-keys -t "$SESSION:0.2" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.2" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.2" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.2" "echo '=== Lane B1: Follow HUD Monitor ===' && sleep 1" C-m
 tmux send-keys -t "$SESSION:0.2" "echo 'Waiting for follow_node to start...' && sleep 15" C-m
@@ -84,7 +86,7 @@ tmux select-pane -t "$SESSION:0.2"
 tmux split-window -h -t "$SESSION:0.2"
 
 # Pane 3: Geo-guard status
-tmux send-keys -t "$SESSION:0.3" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.3" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.3" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.3" "echo '=== Lane B1: Geo-guard Status Monitor ===' && sleep 1" C-m
 tmux send-keys -t "$SESSION:0.3" "echo 'Waiting for geo_guard_node to start...' && sleep 15" C-m
@@ -95,7 +97,7 @@ tmux select-pane -t "$SESSION:0.0"
 tmux split-window -v -t "$SESSION:0.0"
 
 # Pane 4: Perception rate check
-tmux send-keys -t "$SESSION:0.4" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.4" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.4" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.4" "echo '=== Lane B1: Perception Rate Monitor ===' && sleep 1" C-m
 tmux send-keys -t "$SESSION:0.4" "echo 'Waiting for perception nodes to start...' && sleep 15" C-m
@@ -106,7 +108,7 @@ tmux select-pane -t "$SESSION:0.4"
 tmux split-window -h -t "$SESSION:0.4"
 
 # Pane 5: Seen IDs monitor
-tmux send-keys -t "$SESSION:0.5" "cd $GP2_ROOT" C-m
+tmux send-keys -t "$SESSION:0.5" "cd $SAHTD_ROOT" C-m
 tmux send-keys -t "$SESSION:0.5" "source $ENV_SCRIPT" C-m
 tmux send-keys -t "$SESSION:0.5" "echo '=== Lane B1: Seen Track IDs Monitor ===' && sleep 1" C-m
 tmux send-keys -t "$SESSION:0.5" "echo 'Waiting for bytetrack_node to start...' && sleep 15" C-m

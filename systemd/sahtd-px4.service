@@ -4,11 +4,12 @@ After=network.target
 
 [Service]
 Type=simple
-User=ramadan
-Environment=HOME=/home/ramadan
+WorkingDirectory=%h/gp2
+Environment=HOME=%h
+Environment=SAHTD_ROOT=%h/gp2
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
-ExecStart=/home/ramadan/gp2/scripts/sahtd_px4.sh
+ExecStart=%h/gp2/scripts/sahtd_px4.sh
 Restart=no
 RestartSec=3
 

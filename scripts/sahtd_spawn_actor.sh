@@ -23,7 +23,12 @@
 
 set -e
 
-MODELS_DIR="$HOME/gp2/assets/models"
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
+MODELS_DIR="$SAHTD_ROOT/assets/models"
 
 # Parse arguments
 ACTOR_TYPE="${1:-walk}"

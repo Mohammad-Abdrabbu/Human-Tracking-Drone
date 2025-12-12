@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-BACKEND_ROOT="$HOME/gp2/SAHTD_backend"
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
+BACKEND_ROOT="$SAHTD_ROOT/SAHTD_backend"
 
 echo "[sahtd_backend] Starting FastAPI backend from $BACKEND_ROOT"
 

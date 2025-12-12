@@ -18,11 +18,16 @@
 
 set -e
 
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
 # Get scenario tag (default: GEN)
 SCENARIO_TAG="${1:-GEN}"
 
 # Create bags directory
-BAGS_DIR="$HOME/gp2/bags/follow"
+BAGS_DIR="$SAHTD_ROOT/bags/follow"
 mkdir -p "$BAGS_DIR"
 
 # Generate timestamped bag name

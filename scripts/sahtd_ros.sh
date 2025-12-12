@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-source "$HOME/gp2/env/sahtd_env.sh"
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
+source "$SAHTD_ROOT/env/sahtd_env.sh"
 
 echo "[sahtd_ros] Launching ROS graph (perception + follow + geo-guard)..."
 

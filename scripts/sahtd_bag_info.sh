@@ -11,7 +11,12 @@
 
 set -e
 
-BAGS_DIR="$HOME/gp2/bags/follow"
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
+BAGS_DIR="$SAHTD_ROOT/bags/follow"
 
 if [ $# -eq 0 ]; then
   echo "Usage: $0 <bag_name_or_path>"

@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-GP2_ROOT="$HOME/gp2"
-BACKEND_ROOT="$GP2_ROOT/SAHTD_backend"
-FRONTEND_ROOT="$GP2_ROOT/SAHTD_frontend"
+# Resolve SAHTD_ROOT as the repo root (…/gp2)
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+export SAHTD_ROOT
+
+BACKEND_ROOT="$SAHTD_ROOT/SAHTD_backend"
+FRONTEND_ROOT="$SAHTD_ROOT/SAHTD_frontend"
 
 echo "[sahtd_web] Starting SAHTD Web Stack (Backend + Frontend)"
 

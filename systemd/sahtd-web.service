@@ -4,8 +4,10 @@ After=network.target
 
 [Service]
 Type=simple
-Environment=HOME=/home/ramadan
-ExecStart=/home/ramadan/gp2/scripts/sahtd_web.sh
+WorkingDirectory=%h/gp2
+Environment=HOME=%h
+Environment=SAHTD_ROOT=%h/gp2
+ExecStart=%h/gp2/scripts/sahtd_web.sh
 Restart=no
 RestartSec=3
 
