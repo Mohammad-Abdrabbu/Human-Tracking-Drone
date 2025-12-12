@@ -61,7 +61,7 @@ Target environment (what this prototype is built and tested on):
   - Backend: FastAPI + Uvicorn
   - Frontend: React + Vite
 
-> **Assumption:** Repo is cloned to `~/gp2`.  
+> **Assumption:** Repo is cloned to `~/sahtd`.  
 > Scripts and systemd units rely on `SAHTD_ROOT` resolving to this path.
 
 ---
@@ -69,24 +69,43 @@ Target environment (what this prototype is built and tested on):
 ## 3. Repository Layout
 
 ```text
-~/gp2/                          # SAHTD_ROOT
-├── ws/
-│   ├── gp2_ws/                 # Main ROS 2 workspace
-│   │   ├── src/
-│   │   │   ├── gp2_perception/ # YOLO, ByteTrack, follow_node, geo_guard, viz
-│   │   │   └── gp2_bringup/    # Launch files, params, bring-up helpers
-│   │   └── params/
-│   │       └── scenes/         # scene_A.yaml, scene_B.yaml, default.yaml
-│   └── ros_gz_harm_ws/         # Gazebo Harmonic bridge workspace (ros_gz)
-│       └── src/ros_gz/
+~/sahtd/                        # SAHTD_ROOT
+├── ros2/                       # Main ROS 2 workspace
+│   ├── src/
+│   │   ├── sahtd_autonomy/     # Perception & Control nodes
+│   │   │   └── sahtd_autonomy/
+│   │   │       ├── perception/  # YOLO, ByteTrack, viz
+│   │   │       ├── control/     # follow_node, geo_guard
+│   │   │       └── helpers/     # actor_pose, target_guard, etc.
+│   │   └── sahtd_launch/       # Launch files & configs
+│   │       ├── launch/
+│   │       ├── config/
+│   │       └── scenes/
+│   ├── build/, install/, log/
+├── ros2_bridge/                # Gazebo Harmonic bridge workspace
+│   └── src/ros_gz/
 ├── third_party/
 │   └── PX4-Autopilot/          # PX4 SITL repo (x500_mono_cam)
-├── SAHTD_backend/              # FastAPI backend (auth + commands)
-├── SAHTD_frontend/             # React/Vite operator UI
-├── assets/                     # Models, actors, YOLO weights
-├── scripts/                    # Helper scripts (PX4, ROS, actors, bags, web)
-├── systemd/                    # User services (sahtd-px4, sahtd-ros, sahtd-web)
-└── env/                        # Local env helpers (not necessarily versioned)
+├── web/
+│   ├── backend/                # FastAPI backend
+│   └── frontend/               # React/Vite operator UI
+├── simulation/
+│   ├── models/                 # Actor models
+│   ├── weights/                # YOLO weights
+│   └── worlds/                 # Gazebo world files
+├── data/
+│   ├── bags/                   # Recorded bag files
+│   └── archive/
+├── scripts/                    # Organized helper scripts
+│   ├── core/                   # start_px4, start_ros, start_web, start_backend
+│   ├── sim/                    # spawn_actor, delete_actor
+│   ├── data/                   # record_bag, bag_info, analyze_bag
+│   ├── debug/                  # debug_tmux, reset_demo
+│   └── env/                    # setup_env.sh
+├── systemd/                    # User services
+│   ├── px4.service, ros.service
+│   └── web.service, backend.service
+└── docs/                       # Documentation
 ```
 
 ---
@@ -100,7 +119,7 @@ From W1 slow-walk recordings, we measured:
 - **stand_off_px ≈ 167 px** → bbox height at comfortable follow distance.
 - **max_close_px ≈ 279 px** → typical “too close” upper bound.
 
-These are encoded in `follow_params.yaml`:
+These are encoded in `follow.yaml`:
 ```yaml
 stand_off_px: 167.0
 max_close_px: 279.0
@@ -152,29 +171,31 @@ SAHTD_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 export SAHTD_ROOT
 ```
 
-Key scripts (names may vary slightly):
-- `scripts/sahtd_px4.sh` – start PX4 SITL + Gazebo.
-- `scripts/sahtd_ros.sh` – start ROS graph (bridges, perception, follower).
-- `scripts/sahtd_backend.sh` – run FastAPI backend.
-- `scripts/sahtd_web.sh` – combined web launcher (backend + frontend).
-- `scripts/sahtd_spawn_actor.sh` / `sahtd_delete_actor.sh` – manage human actors.
-- `scripts/sahtd_record_follow.sh` – record bags for analysis.
-- `scripts/reset_demo.sh` – clean/reset state for a fresh run.
+Key scripts:
+- `scripts/core/start_px4.sh` – start PX4 SITL + Gazebo
+- `scripts/core/start_ros.sh` – start ROS graph (bridges, perception, follower)
+- `scripts/core/start_backend.sh` – run FastAPI backend
+- `scripts/core/start_web.sh` – combined web launcher (backend + frontend)
+- `scripts/sim/spawn_actor.sh` / `delete_actor.sh` – manage human actors
+- `scripts/data/record_bag.sh` – record bags for analysis
+- `scripts/debug/reset_demo.sh` – clean/reset state for a fresh run
+- `scripts/debug/debug_tmux.sh` – multi-pane debug session
 
 You can run them from anywhere; they’ll always work relative to `SAHTD_ROOT`.
 
 ### 5.2 Systemd units (user services)
-User-level services in `systemd/` assume the repo is at `%h/gp2`:
-- `WorkingDirectory=%h/gp2`
-- `Environment=SAHTD_ROOT=%h/gp2`
-- `ExecStart=/bin/bash -lc '%h/gp2/scripts/...'`
+User-level services in `systemd/` assume the repo is at `%h/sahtd`:
+- `WorkingDirectory=%h/sahtd`
+- `Environment=SAHTD_ROOT=%h/sahtd`
+- `ExecStart=%h/sahtd/scripts/core/...`
 
-Services (typical):
-- `sahtd-px4.service` – PX4 SITL + Gazebo.
-- `sahtd-ros.service` – Bridges + perception + follower node(s).
-- `sahtd-web.service` – FastAPI backend + React frontend.
+Services:
+- `px4.service` – PX4 SITL + Gazebo
+- `ros.service` – Bridges + perception + follower nodes
+- `web.service` – FastAPI backend + React frontend
+- `backend.service` – Backend only
 
-If you clone to a different path than `~/gp2`, update `SAHTD_ROOT` assumptions in your units and/or scripts accordingly.
+If you clone to a different path than `~/sahtd`, update `SAHTD_ROOT` assumptions in your units and/or scripts accordingly.
 
 ---
 
@@ -187,7 +208,7 @@ If you clone to a different path than `~/gp2`, update `SAHTD_ROOT` assumptions i
 ### ROS / Gazebo
 - **ROS 2 Humble** (`ros-humble-desktop`) + `colcon`
 - **Gazebo Sim Harmonic** + ROS 2 bridge:
-  - `ros_gz_image`, `ros_gz_bridge` built for Harmonic in `ws/ros_gz_harm_ws`
+  - `ros_gz_image`, `ros_gz_bridge` built for Harmonic in `ros2_bridge/`
 - ROS packages:
   - `vision_msgs`, `image_transport`, `cv_bridge`, `sensor_msgs`, `geometry_msgs`
 
@@ -207,7 +228,7 @@ If you clone to a different path than `~/gp2`, update `SAHTD_ROOT` assumptions i
 ### Node / Web
 - **Node.js** (v22.x tested)
 - **npm** (10.x tested)
-- Run `npm install` in `SAHTD_frontend/` before first use.
+- Run `npm install` in `web/frontend/` before first use.
 
 ---
 
@@ -217,27 +238,27 @@ Example manual bring-up using separate terminals:
 
 1. **Build & source ROS workspace**
    ```bash
-   cd ~/gp2/ws/gp2_ws
+   cd ~/sahtd/ros2
    colcon build --symlink-install
    source install/setup.bash
    ```
 
 2. **Start PX4 SITL + Gazebo (Terminal A)**
    ```bash
-   cd ~/gp2
-   ./scripts/sahtd_px4.sh
+   cd ~/sahtd
+   ./scripts/core/start_px4.sh
    ```
 
 3. **Start ROS graph (bridges + perception + follower) (Terminal B)**
    ```bash
-   cd ~/gp2/ws/gp2_ws
-   ros2 launch gp2_bringup demo_follow_scene.launch.py scene:=A
+   cd ~/sahtd/ros2
+   ros2 launch sahtd_launch demo_follow.launch.py
    ```
 
 4. **Spawn slow-walk human actor if not auto-spawned (Terminal C)**
    ```bash
-   cd ~/gp2
-   ./scripts/sahtd_spawn_actor.sh --world scene_A --actor walk_slow
+   cd ~/sahtd
+   ./scripts/sim/spawn_actor.sh slow
    ```
 
 5. **Monitor follower HUD (Terminal D)**
@@ -260,7 +281,9 @@ You should see:
   - Initial follower + perception
 
 - **prototype_v2** – This W1 follower freeze:
-  - Globalized scripts + systemd (via `SAHTD_ROOT` / `%h/gp2`)
+  - **Restructured repository** (ros2/, web/, simulation/, scripts/ subdirs)
+  - **Renamed packages** (sahtd_autonomy, sahtd_launch)
+  - Globalized scripts + systemd (via `SAHTD_ROOT` / `%h/sahtd`)
   - Calibrated `stand_off_px` / `max_close_px`
   - Three-zone controller (FAR / HOV / NEAR) with alt hold
   - Updated README (this file)
