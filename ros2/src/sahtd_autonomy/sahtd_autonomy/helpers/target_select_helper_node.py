@@ -6,7 +6,7 @@ CLI helper to select a target ID based on currently visible tracks.
 Prints seen IDs and allows interactive selection via stdin.
 
 Subscriptions:
-  /gp2/follow/seen_ids (std_msgs/String) - preferred
+  /sahtd/follow/seen_ids (std_msgs/String) - preferred
   /perception/tracks (vision_msgs/Detection2DArray) - fallback
 
 Publications:
@@ -49,7 +49,7 @@ class TargetSelectHelperNode(Node):
         # Try subscribing to seen_ids first (preferred)
         self.seen_ids_sub = self.create_subscription(
             String,
-            '/gp2/follow/seen_ids',
+            '/sahtd/follow/seen_ids',
             self._on_seen_ids,
             qos_reliable
         )

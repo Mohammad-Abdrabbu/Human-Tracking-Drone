@@ -9,7 +9,7 @@ Single-drone, single-target human tracking with **image-based follower**, **YOLO
 
 This repository snapshot corresponds to **Prototype v2**:
 
-- Tag (planned): `prototype_v2`
+- Tag: `prototype_v2` ✓
 - Based on tag: `prototype_1` (first full-stack demo)
 - Focus here: **W1 slow-walk follower**, with:
   - **Step 0 – Calibrated geometry** from recorded bags.
@@ -154,7 +154,7 @@ Conceptually:
 **Altitude:**
 - `alt_hold_enable: true` with `alt_hold_m: 2.5` → follower tries to sit at ~2.5 m while tracking.
 
-The HUD topic (`/gp2/follow/hud`) prints:
+The HUD topic (`/sahtd/follow/hud`) prints:
 `Z=FAR/HOV/NEAR`, `h_f`, `eR`, `vx`, yaw error, and additional debug info.
 
 ---
@@ -263,7 +263,7 @@ Example manual bring-up using separate terminals:
 
 5. **Monitor follower HUD (Terminal D)**
    ```bash
-   ros2 topic echo /gp2/follow/hud
+   ros2 topic echo /sahtd/follow/hud
    ```
 
 You should see:

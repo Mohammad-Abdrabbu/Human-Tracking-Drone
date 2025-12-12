@@ -85,10 +85,12 @@ class GeoGuardNode(Node):
 
         # --- I/O ---
         self.pose_sub = self.create_subscription(PoseStamped, '/gp2/vehicle/pose_local', self._on_pose, q_rel)
-        self.cmd_tap_sub = self.create_subscription(Twist, '/gp2/follow/cmd_body', self._on_cmd, q_rel)
+        self.cmd_tap_sub = self.create_subscription(Twist, '/sahtd/follow/cmd_body', self._on_cmd, q_rel)
         self.status_pub = self.create_publisher(String, '/gp2/guard/status', q_status)
         self.reason_pub = self.create_publisher(String, '/gp2/guard/reason', q_rel)
-        self.cmd_pub = self.create_publisher(Twist, '/gp2/follow/cmd_body', q_rel)  # override only on HOLD/VIOLATION
+        # The geo-guard override publisher (VIOLATION/HOLD → republish cmd_body w/ vx=vy=vz=0)
+        # If CLEAR → we do nothing (other subscribe => cmd_pub passthrough by default)
+        self.cmd_pub = self.create_publisher(Twist, '/sahtd/follow/cmd_body', q_rel)  # override only on HOLD/VIOLATION
 
         # Reset subscription
         self.reset_sub = self.create_subscription(

@@ -173,9 +173,9 @@ class FollowNode(Node):
         qos_in.reliability = ReliabilityPolicy.RELIABLE
 
         # HUD + command
-        self.cmd_pub = self.create_publisher(Twist, "/gp2/follow/cmd_body", 10)
-        self.hud_pub = self.create_publisher(String, "/gp2/follow/hud", 10)
-        self.seen_pub = self.create_publisher(String, "/gp2/follow/seen_ids", 10)
+        self.cmd_pub = self.create_publisher(Twist, "/sahtd/follow/cmd_body", 10)
+        self.hud_pub = self.create_publisher(String, "/sahtd/follow/hud", 10)
+        self.seen_pub = self.create_publisher(String, "/sahtd/follow/seen_ids", 10)
 
         qos_pose = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
@@ -203,7 +203,7 @@ class FollowNode(Node):
         # Reset subscription
         self.reset_sub = self.create_subscription(
             Empty,
-            '/gp2/follow/reset',
+            '/sahtd/follow/reset',
             self._on_follow_reset,
             10,
         )
