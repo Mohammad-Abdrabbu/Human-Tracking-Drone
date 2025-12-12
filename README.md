@@ -159,7 +159,43 @@ The HUD topic (`/sahtd/follow/hud`) prints:
 
 ---
 
-## 5. Scripts, Globalization & Systemd
+## 5. System Health Check
+
+Before running experiments, verify all systems are operational:
+
+```bash
+~/sahtd/scripts/debug/doctor.sh
+```
+
+This script checks:
+- PX4 and Gazebo processes running
+- ROS graph active with expected nodes  
+- Camera, tracks, and command topics publishing at correct rates
+- System state (targets visible, altitude, geo-guard status)
+
+**Output symbols:**
+- ✓ Green = PASS
+- ✗ Red = FAIL (critical)
+- ⚠ Yellow = WARNING (non-critical)
+- ℹ Blue = INFO
+
+**Exit codes:**
+- `0` = All systems go (ready for demo)
+- `1` = Critical failure (cannot run, fix issues)
+- `2` = Warnings only (can run but monitor)
+
+**Quick usage:**
+```bash
+# Check health before starting
+~/sahtd/scripts/debug/doctor.sh && echo "Ready!"
+
+# Or continuous monitoring
+watch -n 5 ~/sahtd/scripts/debug/doctor.sh
+```
+
+---
+
+## 6. Scripts, Globalization & Systemd
 
 ### 5.1 SAHTD_ROOT and script behavior
 All helper scripts in `scripts/` resolve the repo root automatically:
