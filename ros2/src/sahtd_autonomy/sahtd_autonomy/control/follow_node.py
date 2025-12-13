@@ -2,35 +2,28 @@
 # follow_node.py (detect + rotate + advance; no strafe)
 # Uses ByteTrack tracks for target selection and image-based forward control.
 import asyncio, math, time, threading, re
-from enum import Enum
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 from std_msgs.msg import String, Int32, Empty
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from vision_msgs.msg import Detection2DArray
 from mavsdk.telemetry import Health
 from mavsdk import System
 from mavsdk.offboard import OffboardError, VelocityBodyYawspeed
 
-# Geometry msgs
-from geometry_msgs.msg import PoseStamped
+# Import from new modular components
+from .state.fsm import FollowState as S
+from .state.zone_classifier import ZoneClassifier
+from .utils.geometry import fov_ex
+from .controllers.yaw_controller import YawController
+from .controllers.range_controller import RangeController
+from .controllers.altitude_controller import AltitudeController
 
 
-def fov_ex(cx_px, img_w, hfov_rad, invert=False):
-    ex = (cx_px - 0.5 * img_w) / max(1.0, 0.5 * img_w)   # [-1,1]
-    if invert:
-        ex = -ex
-    return ex * (hfov_rad * 0.5)  # radians
-
-
-class S(Enum): 
-    GROUND = 0
-    TAKEOFF = 1
-    SEARCH = 2
-    LOCKED = 3
+# Note: S enum now imported from .state.fsm as FollowState
 
 
 class FollowNode(Node):
@@ -67,7 +60,7 @@ class FollowNode(Node):
         self.declare_parameter('h_deadband_px', 10.0)   # no vx when |h - stand_off_px| <= deadband
         self.declare_parameter('kx', 0.012)             # m/s per pixel error
         self.declare_parameter('vx_max', 0.5)           # m/s
-        self.declare_parameter('rate_limit_vx', 0.10)   # m/s^2 (slew limit)
+        self.declare_parameter('rate_limit_vx', 0.15)   # m/s^2 (slew limit) - increased for faster decel
         self.declare_parameter('gate_ex', 0.35)         # rad; only advance when |ex_f| <= gate_ex
         self.declare_parameter('h_lpf_alpha', 0.20)     # bbox height LPF (0..1)
         self.declare_parameter('allow_reverse', False)  # if False, never command negative vx
@@ -85,9 +78,9 @@ class FollowNode(Node):
 
         # --- PROGRESSIVE SPEED CONTROL (reduce speed as target gets closer) ---
         self.declare_parameter('progressive_speed_enable', True)  # enable progressive vx_max
-        self.declare_parameter('progressive_hf_start', 100.0)     # h_f where speed reduction starts (px)
-        self.declare_parameter('progressive_hf_full', 300.0)      # h_f where speed is minimum (px)
-        self.declare_parameter('progressive_vx_min', 0.15)        # minimum vx_max when very close (m/s)
+        self.declare_parameter('progressive_hf_start', 80.0)      # h_f where speed reduction starts (px) - earlier taper
+        self.declare_parameter('progressive_hf_full', 160.0)      # h_f where speed is minimum (px) - reach min speed earlier
+        self.declare_parameter('progressive_vx_min', 0.08)        # minimum vx_max when very close (m/s) - safer approach
 
         # --- THREE-ZONE CONTROL (Step 1 - FAR/HOVER/NEAR) ---
         self.declare_parameter('zone_hover_lower_px', 150.0)      # Below this = FAR
@@ -95,6 +88,11 @@ class FollowNode(Node):
         self.declare_parameter('zone_near_px', 220.0)             # Above this = NEAR (no positive vx)
         self.declare_parameter('zone_hover_yaw_deg', 4.0)         # Yaw error must be < this for HOVER
         self.declare_parameter('zone_hover_eR_thresh', 20.0)      # |eR| must be < this for HOVER
+
+        # --- NEAR BACK-OFF (Step 3) ---
+        self.declare_parameter('near_backoff_enable', True)       # Enable back-off when too close
+        self.declare_parameter('near_backoff_vx', 0.15)           # Max back-off velocity (m/s)
+        self.declare_parameter('near_backoff_kx', 0.006)          # Proportional gain (m/s per px overshoot)
 
         # --- timing / behavior ---
         self.declare_parameter('stale_s', 0.75)
@@ -149,6 +147,62 @@ class FollowNode(Node):
         self._target_stationary = False   # is target considered stationary?
         self._prox_brake_active = False   # is proximity brake currently active?
         self._zone = "FAR"                # current zone: FAR, HOV, NEAR
+
+        # Initialize zone classifier with default params (will be updated from ROS params)
+        self._zone_classifier = ZoneClassifier(
+            hover_lower_px=float(self.get_parameter('zone_hover_lower_px').value),
+            hover_upper_px=float(self.get_parameter('zone_hover_upper_px').value),
+            near_thresh_px=float(self.get_parameter('zone_near_px').value),
+            hover_yaw_deg=float(self.get_parameter('zone_hover_yaw_deg').value),
+            hover_eR_thresh=float(self.get_parameter('zone_hover_eR_thresh').value)
+        )
+
+        # Initialize yaw controller
+        self._yaw_ctrl = YawController(
+            k_yaw=float(self.get_parameter('k_yaw').value),
+            kd_yaw=float(self.get_parameter('kd_yaw').value),
+            lpf_alpha=float(self.get_parameter('lpf_alpha').value),
+            deadzone=float(self.get_parameter('deadzone').value),
+            center_hold_deg=float(self.get_parameter('center_hold_deg').value),
+            yawrate_max=float(self.get_parameter('yawrate_max').value),
+            rate_limit_deg_s2=float(self.get_parameter('rate_limit_yaw').value)
+        )
+
+        # Initialize range controller
+        self._range_ctrl = RangeController(
+            stand_off_px=float(self.get_parameter('stand_off_px').value),
+            kx=float(self.get_parameter('kx').value),
+            vx_max=float(self.get_parameter('vx_max').value),
+            rate_limit_vx=float(self.get_parameter('rate_limit_vx').value),
+            max_close_px=float(self.get_parameter('max_close_px').value),
+            h_deadband_px=float(self.get_parameter('h_deadband_px').value),
+            allow_reverse=bool(self.get_parameter('allow_reverse').value),
+            progressive_enable=bool(self.get_parameter('progressive_speed_enable').value),
+            progressive_hf_start=float(self.get_parameter('progressive_hf_start').value),
+            progressive_hf_full=float(self.get_parameter('progressive_hf_full').value),
+            progressive_vx_min=float(self.get_parameter('progressive_vx_min').value),
+            prox_brake_enable=bool(self.get_parameter('prox_brake_enable').value),
+            prox_brake_hf_thresh=float(self.get_parameter('prox_brake_hf_thresh').value),
+            prox_brake_vx_max=float(self.get_parameter('prox_brake_vx_max').value),
+            prox_brake_decel_rate=float(self.get_parameter('prox_brake_decel_rate').value),
+            # NEAR back-off (Step 3)
+            near_backoff_enable=bool(self.get_parameter('near_backoff_enable').value),
+            near_backoff_vx=float(self.get_parameter('near_backoff_vx').value),
+            near_backoff_kx=float(self.get_parameter('near_backoff_kx').value)
+        )
+
+        # Initialize altitude controller
+        self._alt_ctrl = AltitudeController(
+            alt_hold_m=float(self.get_parameter('alt_hold_m').value),
+            k_z_up=float(self.get_parameter('k_z_up').value),
+            k_z_down=float(self.get_parameter('k_z_down').value),
+            vz_up_max=float(self.get_parameter('vz_up_max').value),
+            vz_down_max=float(self.get_parameter('vz_down_max').value),
+            alt_guard_enable=bool(self.get_parameter('alt_guard_enable').value),
+            alt_max_m=float(self.get_parameter('alt_max_m').value),
+            alt_deadband_m=float(self.get_parameter('alt_deadband_m').value)
+        )
+        self._alt_ctrl.alt_hold_enable = bool(self.get_parameter('alt_hold_enable').value)
 
         self._selected_id = None
         self._seen_ids = set()
@@ -512,22 +566,24 @@ class FollowNode(Node):
                 reason = "WAIT_FOR_SELECTION"
                 self._fsm = S.SEARCH
             else:
-                # ---- YAW control ----
+                # ---- YAW control using YawController ----
                 if cx is not None and age <= stale_s:
                     ex_rad = fov_ex(cx, img_w, hfov_rad, invert=invert)
                     ex_deg = math.degrees(ex_rad)
+                    ex_normalized = ex_rad / (hfov_rad * 0.5)  # Normalize to [-1, 1]
 
-                    # LPF on error + derivative
-                    self._ex_f = (1.0 - alpha) * self._ex_f + alpha * ex_rad
-                    dex_dt = (self._ex_f - self._prev_ex_f) / max(1e-3, dt)
-                    yaw_raw = k_yaw * self._ex_f + kd_yaw * dex_dt
-
-                    if abs(ex_rad) < dead or abs(ex_deg) <= dead_deg_hold:
-                        yaw_cmd = 0.0
+                    # Use YawController for filtered PD control
+                    yaw_cmd = self._yaw_ctrl.compute(ex_normalized, dt)
+                    
+                    # Sync internal state for HUD/debug
+                    self._ex_f = self._yaw_ctrl.filtered_error
+                    
+                    # Determine reason based on yaw command
+                    if yaw_cmd == 0.0:
                         reason = "TRACK_CENTER_HOLD"
                     else:
-                        yaw_cmd = max(-yaw_max, min(yaw_max, yaw_raw))
                         reason = "TRACK_PD"
+                    yaw_raw = yaw_cmd
 
                     self._prev_ex_f = self._ex_f
                     self._fsm = S.LOCKED if locked else S.SEARCH
@@ -579,109 +635,27 @@ class FollowNode(Node):
 
                     eR = effective_stand_off - self._h_f
 
-                    # --- PROGRESSIVE SPEED CONTROL ---
-                    # Reduce vx_max as target gets closer (based on h_f)
-                    progressive_enable = bool(self.get_parameter('progressive_speed_enable').value)
-                    if progressive_enable:
-                        hf_start = float(self.get_parameter('progressive_hf_start').value)
-                        hf_full = float(self.get_parameter('progressive_hf_full').value)
-                        vx_min = float(self.get_parameter('progressive_vx_min').value)
-                        
-                        if self._h_f <= hf_start:
-                            # Far away - full speed
-                            vx_max_progressive = vx_max
-                        elif self._h_f >= hf_full:
-                            # Very close - minimum speed
-                            vx_max_progressive = vx_min
-                        else:
-                            # Progressive scaling between start and full
-                            # As h_f goes from hf_start to hf_full, vx_max goes from vx_max to vx_min
-                            ratio = (self._h_f - hf_start) / (hf_full - hf_start)
-                            vx_max_progressive = vx_max - (vx_max - vx_min) * ratio
-                    else:
-                        vx_max_progressive = vx_max
-
-                    # --- THREE-ZONE CLASSIFICATION (Step 1) ---
-                    zone_hover_lower = float(self.get_parameter('zone_hover_lower_px').value)
-                    zone_hover_upper = float(self.get_parameter('zone_hover_upper_px').value)
-                    zone_near = float(self.get_parameter('zone_near_px').value)
-                    zone_hover_yaw_deg = float(self.get_parameter('zone_hover_yaw_deg').value)
-                    zone_hover_yaw_rad = math.radians(zone_hover_yaw_deg)
-                    zone_hover_eR_thresh = float(self.get_parameter('zone_hover_eR_thresh').value)
-                    
-                    # Get current yaw error for zone classification
+                    # --- THREE-ZONE CLASSIFICATION (using ZoneClassifier module) ---
                     ex_rad_for_zone = abs(self._ex_f * math.pi)  # _ex_f is normalized [-1,1]
-                    in_hover_yaw = ex_rad_for_zone < zone_hover_yaw_rad
-                    
-                    # FIX: Also require eR to be small for HOVER
-                    # This prevents hovering when target walks away (high positive eR)
-                    in_hover_eR = abs(eR) < zone_hover_eR_thresh
-                    
-                    # Zone classification with precedence: NEAR > HOV > FAR
-                    if self._h_f > zone_near:
-                        self._zone = "NEAR"
-                    elif zone_hover_lower <= self._h_f <= zone_hover_upper and in_hover_yaw and in_hover_eR:
-                        self._zone = "HOV"
-                    else:
-                        self._zone = "FAR"
+                    self._zone = self._zone_classifier.classify(self._h_f, ex_rad_for_zone, eR)
 
                     centered_ok = abs(self._ex_f) <= gate_ex
-                    want_forward = centered_ok
 
-                    vx_des = 0.0
+                    # --- VX CONTROL using RangeController ---
+                    # Controller handles zone-aware control, progressive speed, and proximity braking
+                    vx_limited = self._range_ctrl.compute(
+                        h_f=self._h_f,
+                        zone=self._zone,
+                        centered_ok=centered_ok,
+                        effective_stand_off=effective_stand_off,
+                        dt=dt
+                    )
                     
-                    # --- ZONE-AWARE VX CONTROL ---
-                    if self._zone == "HOV":
-                        # HOVER zone: explicitly set vx = 0 (sweet spot)
-                        vx_des = 0.0
-                    elif self._zone == "NEAR":
-                        # NEAR zone: never allow positive vx
-                        # For now, just clamp to 0 (back-off in later step)
-                        if allow_reverse and eR < -h_deadband_px:
-                            vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
-                        else:
-                            vx_des = 0.0
-                    else:
-                        # FAR zone (or transition): normal proportional control
-                        if want_forward:
-                            if self._h_f >= max_close_px:
-                                # too close -> do not command positive vx
-                                if allow_reverse and eR < -h_deadband_px:
-                                    vx_des = max(-vx_max_progressive, min(0.0, kx * eR))
-                                else:
-                                    vx_des = 0.0
-                            else:
-                                # normal stand-off controller with progressive vx_max
-                                if abs(eR) <= h_deadband_px:
-                                    vx_des = 0.0
-                                else:
-                                    vx_des = max(0.0, kx * eR)  # forward only
-                                    vx_des = min(vx_des, vx_max_progressive)
-
-                    # slew limit vx
-                    max_dv = rate_limit_vx * dt
-                    vx_limited = self._prev_vx + max(-max_dv, min(max_dv, vx_des - self._prev_vx))
-                    vx_limited = max(-vx_max, min(vx_limited, vx_max)) if allow_reverse else max(0.0, min(vx_limited, vx_max))
-
-                    # --- PROXIMITY BRAKE ZONE (emergency safety layer) ---
-                    prox_brake_enable = bool(self.get_parameter('prox_brake_enable').value)
-                    prox_brake_hf_thresh = float(self.get_parameter('prox_brake_hf_thresh').value)
-                    prox_brake_vx_max = float(self.get_parameter('prox_brake_vx_max').value)
-                    prox_brake_decel_rate = float(self.get_parameter('prox_brake_decel_rate').value)
-
-                    self._prox_brake_active = False
-                    if prox_brake_enable and self._h_f > prox_brake_hf_thresh:
-                        self._prox_brake_active = True
-                        # Apply emergency braking
-                        if vx_limited > prox_brake_vx_max:
-                            prox_decel = prox_brake_decel_rate * dt
-                            vx_limited = max(prox_brake_vx_max, vx_limited - prox_decel)
-                        else:
-                            vx_limited = min(vx_limited, prox_brake_vx_max)
-                    
-                    # NEAR zone final enforcement: never positive vx
-                    if self._zone == "NEAR":
-                        vx_limited = min(vx_limited, 0.0)
+                    # Sync proximity brake state for HUD
+                    self._prox_brake_active = (
+                        self._range_ctrl.prox_brake_enable and 
+                        self._h_f > self._range_ctrl.prox_brake_hf_thresh
+                    )
 
                     vx = vx_limited
                     self._prev_vx = vx_limited
@@ -708,33 +682,10 @@ class FollowNode(Node):
                     # optional: freeze slewing toward zero so we don't "spring" forward on release
                     self._prev_vx = 0.0
 
-            # --- Vertical (altitude) hold ---
-            vz_cmd = 0.0   # NED down (+) ; up is negative
-            if bool(self.get_parameter('alt_hold_enable').value):
-                hold = float(self.get_parameter('alt_hold_m').value)
-                db   = float(self.get_parameter('alt_deadband_m').value)  # already declared earlier
-                k_up = float(self.get_parameter('k_z_up').value)
-                k_dn = float(self.get_parameter('k_z_down').value)
-                vz_up_max  = float(self.get_parameter('vz_up_max').value)
-                vz_down_max= float(self.get_parameter('vz_down_max').value)
-
-                if self._rel_alt < (hold - db):
-                    # below → go up (negative down)
-                    err = (hold - self._rel_alt)
-                    vz_cmd = -min(vz_up_max, max(0.0, k_up * err))
-                elif self._rel_alt > (hold + db):
-                    # above → go down (positive down)
-                    err = (self._rel_alt - hold)
-                    vz_cmd =  min(vz_down_max, max(0.0, k_dn * err))
-
-            # If an absolute ceiling is configured, clamp downward harder if above it
-            if bool(self.get_parameter('alt_guard_enable').value):
-                alt_max_m = float(self.get_parameter('alt_max_m').value)
-                alt_db_m  = float(self.get_parameter('alt_deadband_m').value)
-                if self._rel_alt > (alt_max_m + alt_db_m):
-                    err = self._rel_alt - alt_max_m
-                    vz_cmd = max(vz_cmd, min(float(self.get_parameter('vz_down_max').value),
-                                 max(0.0, float(self.get_parameter('k_z_down').value) * err)))
+            # --- Vertical (altitude) control using AltitudeController ---
+            # Controller returns positive = up, but MAVSDK uses NED (positive = down)
+            vz_enu = self._alt_ctrl.compute(self._rel_alt)
+            vz_cmd = -vz_enu  # Convert ENU (up+) to NED (down+)
 
             # Publish Twist (ROS) and send MAVSDK velocity (Body frame)
             tw = Twist()
