@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sdf version="1.9">
+  <world name="technical_cp_geofence">
+    <physics type="ode">
+      <max_step_size>0.004</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>250</real_time_update_rate>
+    </physics>
+    <gravity>0 0 -9.8</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type="adiabatic"/>
+    <scene>
+      <grid>false</grid>
+      <ambient>0.4 0.4 0.4 1</ambient>
+      <background>0.7 0.9 1.0 1</background>
+      <shadows>true</shadows>
+    </scene>
+
+    <!-- ========== GROUND PLANE (Grass) ========== -->
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>1 1</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction><ode/></friction>
+            <bounce/>
+            <contact/>
+          </surface>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>500 500</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.3 0.5 0.2 1</ambient>
+            <diffuse>0.3 0.5 0.2 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+        <pose>0 0 0 0 0 0</pose>
+        <inertial>
+          <pose>0 0 0 0 0 0</pose>
+          <mass>1</mass>
+          <inertia><ixx>1</ixx><ixy>0</ixy><ixz>0</ixz><iyy>1</iyy><iyz>0</iyz><izz>1</izz></inertia>
+        </inertial>
+      </link>
+      <pose>0 0 0 0 0 0</pose>
+    </model>
+
+    <!-- ========== PLAYGROUND BORDER (Fence Outline) ========== -->
+    <!-- Fence: x=4→28, y=-12→12 (24m × 24m) -->
+
+    <!-- Border: Near edge (x=4) -->
+    <model name="fence_near">
+      <static>true</static>
+      <pose>4 0 0.15 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.15 24.3 0.3</size></box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.2 0.2 1</ambient>
+            <diffuse>0.9 0.3 0.3 1</diffuse>
+            <specular>0.3 0.3 0.3 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Border: Far edge (x=28) -->
+    <model name="fence_far">
+      <static>true</static>
+      <pose>28 0 0.15 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>0.15 24.3 0.3</size></box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.2 0.2 1</ambient>
+            <diffuse>0.9 0.3 0.3 1</diffuse>
+            <specular>0.3 0.3 0.3 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Border: Left edge (y=12) -->
+    <model name="fence_left">
+      <static>true</static>
+      <pose>16 12 0.15 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>24.3 0.15 0.3</size></box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.2 0.2 1</ambient>
+            <diffuse>0.9 0.3 0.3 1</diffuse>
+            <specular>0.3 0.3 0.3 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- Border: Right edge (y=-12) -->
+    <model name="fence_right">
+      <static>true</static>
+      <pose>16 -12 0.15 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>24.3 0.15 0.3</size></box>
+          </geometry>
+          <material>
+            <ambient>0.8 0.2 0.2 1</ambient>
+            <diffuse>0.9 0.3 0.3 1</diffuse>
+            <specular>0.3 0.3 0.3 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ========== PLAYGROUND FLOOR (lighter grass) ========== -->
+    <model name="playground_floor">
+      <static>true</static>
+      <pose>16 0 0.005 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry>
+            <box><size>24 24 0.01</size></box>
+          </geometry>
+          <material>
+            <ambient>0.4 0.6 0.3 1</ambient>
+            <diffuse>0.5 0.7 0.4 1</diffuse>
+            <specular>0.1 0.1 0.1 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ========== STANDING HUMANS - SHIFTED RIGHT (Y-) ========== -->
+    <!-- 
+         Fence: x=4→28, y=-12→12
+         All humans shifted more to the right (lower Y values)
+         
+         +Y = left, -Y = right
+         +X = forward
+    -->
+    
+    <!-- person_stand_1: Shifted right to y=-2 -->
+    <actor name="person_stand_1">
+      <pose>10 -4 1.0 0 0 0.3</pose>
+      <skin>
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </skin>
+      <animation name="idle">
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="walking">
+          <waypoint><time>0.0</time><pose>10 -2 0.02 0 0 0.3</pose></waypoint>
+          <waypoint><time>100.0</time><pose>10 -2 0.02 0 0 0.3</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <!-- person_stand_2: Shifted right to y=-6 -->
+    <actor name="person_stand_2">
+      <pose>14 -6 1.0 0 0 -0.5</pose>
+      <skin>
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </skin>
+      <animation name="idle">
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="walking">
+          <waypoint><time>0.0</time><pose>14 -6 0.02 0 0 -0.5</pose></waypoint>
+          <waypoint><time>100.0</time><pose>14 -6 0.02 0 0 -0.5</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <!-- person_stand_3: Far right corner -->
+    <actor name="person_stand_3">
+      <pose>22 -15 1.0 0 0 2.0</pose>
+      <skin>
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </skin>
+      <animation name="idle">
+        <filename>model://actor_walk/meshes/walk.dae</filename>
+        <scale>1.0</scale>
+      </animation>
+      <script>
+        <loop>true</loop>
+        <auto_start>true</auto_start>
+        <trajectory id="0" type="walking">
+          <waypoint><time>0.0</time><pose>22 -15 0.02 0 0 2.0</pose></waypoint>
+          <waypoint><time>100.0</time><pose>22 -15 0.02 0 0 2.0</pose></waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <!-- ========== LIGHTING ========== -->
+    <light name="sunUTC" type="directional">
+      <pose>0 0 500 0 0 0</pose>
+      <cast_shadows>true</cast_shadows>
+      <intensity>1</intensity>
+      <direction>0.001 0.625 -0.78</direction>
+      <diffuse>0.904 0.904 0.904 1</diffuse>
+      <specular>0.271 0.271 0.271 1</specular>
+      <attenuation>
+        <range>2000</range>
+        <linear>0</linear>
+        <constant>1</constant>
+        <quadratic>0</quadratic>
+      </attenuation>
+    </light>
+
+    <!-- ========== SPHERICAL COORDINATES ========== -->
+    <spherical_coordinates>
+      <surface_model>EARTH_WGS84</surface_model>
+      <world_frame_orientation>ENU</world_frame_orientation>
+      <latitude_deg>47.397971057728974</latitude_deg>
+      <longitude_deg>8.546163739800146</longitude_deg>
+      <elevation>0</elevation>
+    </spherical_coordinates>
+
+    <!-- ========== WALKING ACTORS ========== -->
+    <include>
+      <uri>file:///home/ramadan/sahtd/scenes/technical_cp_geofence/actors/person_violator.sdf</uri>
+    </include>
+
+    <include>
+      <uri>file:///home/ramadan/sahtd/scenes/technical_cp_geofence/actors/person_walk_inside.sdf</uri>
+    </include>
+
+  </world>
+</sdf>

@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <sdf version="1.9">
   <actor name="person_violator">
-    <!-- Violator: starts inside playground, walks out after ~15s -->
-    <!-- TRIPLED Playground: x=4→28, y=-12→12 (24m x 24m) -->
-    <!-- Start at (10, 0), walk towards +X, exit fence at x>28 -->
-    <pose>10 0 1.0 0 0 0</pose>
+    <!-- Violator: starts 5m from drone, walks straight out slowly -->
+    <!-- Fence: x=4→28, y=-12→12 -->
+    <!-- SIMPLE STRAIGHT LINE at ~0.5 m/s -->
+    <pose>5 0 1.0 0 0 0</pose>
 
     <skin>
       <filename>model://actor_walk/meshes/walk.dae</filename>
@@ -19,86 +19,55 @@
 
     <script>
       <loop>true</loop>
-      <delay_start>3.0</delay_start>
+      <delay_start>40.0</delay_start>
       <auto_start>true</auto_start>
 
       <!-- 
-           Violator Path (tripled playground):
-           - Starts at (10, 0) INSIDE the fence (x=4→28)
-           - Walks inside for ~12 seconds
-           - Exits fence at x>28 around t=15s
-           - Continues outside
-           - Loops back (for demo repeatability)
+           SIMPLE STRAIGHT LINE PATH:
+           - Starts at (5, 0), facing +X
+           - Walks slowly straight forward (~0.5 m/s)
+           - Exits fence at x=28 around t=46s
+           - Continues to x=35, then loops back
            
-           Fence boundary: x=4 (near), x=28 (far), y=-12/+12
+           Speed: ~0.5 m/s (walking pace)
       -->
 
       <trajectory id="0" type="walking">
         
-        <!-- ═══ Start inside, facing +X ═══ -->
+        <!-- Start at (5, 0) -->
         <waypoint>
           <time>0.0</time>
-          <pose>10 0 0.02 0 0 0.0</pose>
+          <pose>5 0 0.02 0 0 0.0</pose>
         </waypoint>
         
-        <!-- Walk forward inside -->
+        <!-- Walk straight to x=28 (exit fence) - 23m at 0.5m/s = 46s -->
         <waypoint>
-          <time>5.0</time>
-          <pose>15 0 0.02 0 0 0.0</pose>
+          <time>46.0</time>
+          <pose>28 0 0.02 0 0 0.0</pose>
         </waypoint>
         
-        <!-- Turn slightly, wander -->
+        <!-- Continue outside to x=35 -->
         <waypoint>
-          <time>8.0</time>
-          <pose>18 -3 0.02 0 0 -0.3</pose>
+          <time>60.0</time>
+          <pose>35 0 0.02 0 0 0.0</pose>
         </waypoint>
         
-        <!-- Continue toward far edge -->
+        <!-- Turn around -->
         <waypoint>
-          <time>12.0</time>
-          <pose>24 -3 0.02 0 0 0.0</pose>
+          <time>62.0</time>
+          <pose>35 0 0.02 0 0 3.14</pose>
         </waypoint>
         
-        <!-- ═══ EXIT FENCE at t≈15s (x > 28) ═══ -->
+        <!-- Walk back to start -->
         <waypoint>
-          <time>15.0</time>
-          <pose>30 -3 0.02 0 0 0.0</pose>
+          <time>122.0</time>
+          <pose>5 0 0.02 0 0 3.14</pose>
         </waypoint>
         
-        <!-- Continue walking outside -->
+        <!-- Turn to face forward again -->
         <waypoint>
-          <time>20.0</time>
-          <pose>35 -3 0.02 0 0 0.0</pose>
-        </waypoint>
-        
-        <!-- ═══ Turn around to loop back ═══ -->
-        <waypoint>
-          <time>22.0</time>
-          <pose>35 -3 0.02 0 0 3.14</pose>
-        </waypoint>
-        
-        <!-- Walk back toward fence -->
-        <waypoint>
-          <time>30.0</time>
-          <pose>20 -3 0.02 0 0 3.14</pose>
-        </waypoint>
-        
-        <!-- Turn to face center -->
-        <waypoint>
-          <time>32.0</time>
-          <pose>20 0 0.02 0 0 1.57</pose>
-        </waypoint>
-        
-        <!-- Walk back to start region -->
-        <waypoint>
-          <time>38.0</time>
-          <pose>14 0 0.02 0 0 3.14</pose>
-        </waypoint>
-        
-        <!-- Return to start position -->
-        <waypoint>
-          <time>42.0</time>
-          <pose>10 0 0.02 0 0 0.0</pose>
+          <time>124.0</time>
+          <pose>5 0 0.02 0 0 0.0</pose>
         </waypoint>
         
       </trajectory>
