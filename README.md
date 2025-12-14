@@ -253,13 +253,18 @@ If you clone to a different path than `~/sahtd`, update `SAHTD_ROOT` assumptions
 - SITL target: `px4_sitl gz_x500_mono_cam`
 
 ### Python
-- `torch` (CPU build)
-- `ultralytics`
-- `numpy`
-- `opencv-python` (or `python3-opencv` via apt)
+- `torch` (**2.6.0+cu124** for GPU, or CPU build)
+  - GPU: `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124`
+  - CPU: `pip install torch torchvision`
+- `ultralytics` (YOLOv8)
+- `numpy` (**<2.0**, e.g., 1.26.4 for ROS Humble cv_bridge compatibility)
+- `opencv-python` (**<4.10**, e.g., 4.9.0 for numpy 1.x compatibility)
 - `pillow`
 - `mavsdk`
 - `fastapi`, `uvicorn`, `PyJWT`, `python-dotenv` (backend)
+
+> **Note:** If using GPU acceleration, ensure numpy < 2.0 for cv_bridge compatibility.
+> Install order: `pip install 'numpy<2.0' 'opencv-python<4.10'` after PyTorch.
 
 ### Node / Web
 - **Node.js** (v22.x tested)

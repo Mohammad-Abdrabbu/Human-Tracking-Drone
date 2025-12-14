@@ -6,7 +6,7 @@ yolo_node:
     model_path: "/home/ramadan/sahtd/simulation/weights/yolov8n.pt"
 
     # Detection thresholds
-    conf_thres: 0.25        # detector confidence
+    conf_thres: 0.30      # raised from 0.25 to reduce false positives
     iou_thres: 0.50         # NMS IoU threshold
 
     # Image size (keep consistent with camera / Gazebo)
@@ -14,7 +14,7 @@ yolo_node:
     imgsz_h: 360
 
     # Device: "cpu" or "cuda:0" if you have a GPU
-    device: "cpu"
+    device: "cuda:0"
 
     # Only detect person class (COCO id 0)
     class_filter: [0]
@@ -25,17 +25,17 @@ yolo_node:
 
 bytetrack_node:
   ros__parameters:
-    # ByteTrack tuning (see your bytetrack_v1 plan)
+    # ByteTrack tuning (REDUCED track_buffer for 10Hz operation)
     track_thresh: 0.5
     match_thresh: 0.8
-    track_buffer: 30
+    track_buffer: 10      # was 30 - reduced to prevent ghost boxes at ~10Hz
 
     # Extra MOT config (adjust to match your node's expectations)
-    min_box_area: 10.0
+    min_box_area: 120.0     # raised from 10 to filter tiny ghost boxes
     mot_fps: 15.0
 
     # How long to keep lost tracks alive (frames)
-    max_age: 30
+    max_age: 10             # was 30 - reduced to match track_buffer
 
     # Whether to log debug info
     debug_tracks: true

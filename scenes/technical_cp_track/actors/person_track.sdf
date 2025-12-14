@@ -1,0 +1,116 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <actor name="person_track">
+    <!-- Spawn 3m ahead of drone, slightly above ground -->
+    <pose>3 0 1.0 0 0 0</pose>
+
+    <skin>
+      <!-- Use model:// URI for portability - requires GZ_SIM_RESOURCE_PATH -->
+      <filename>model://actor_walk/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+    </skin>
+
+    <animation name="walk">
+      <filename>model://actor_walk/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+      <interpolate_x>true</interpolate_x>
+    </animation>
+
+    <script>
+      <loop>true</loop>
+      <delay_start>2.0</delay_start>
+      <auto_start>true</auto_start>
+
+      <!-- 
+           Stop-and-turn zigzag path (shifted back 2m):
+           - Walk forward along +X
+           - STOP, turn right in place (rotate yaw)
+           - Walk in -Y direction
+           - STOP, turn left in place
+           - Walk in +X direction
+           - etc.
+           
+           Total path: ~30 seconds
+           Walking speed: ~1 m/s
+      -->
+
+      <trajectory id="0" type="walking">
+        
+        <!-- ═══ Walk forward (+X) for 5s ═══ -->
+        <waypoint>
+          <time>0.0</time>
+          <pose>3 0 0.02 0 0 0.0</pose>
+        </waypoint>
+        <waypoint>
+          <time>5.0</time>
+          <pose>8 0 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- ═══ STOP, turn RIGHT in place (face -Y) ═══ -->
+        <waypoint>
+          <time>6.0</time>
+          <pose>8 0 0.02 0 0 -0.8</pose>
+        </waypoint>
+        <waypoint>
+          <time>7.0</time>
+          <pose>8 0 0.02 0 0 -1.57</pose>
+        </waypoint>
+        
+        <!-- ═══ Walk right (-Y) for 4s ═══ -->
+        <waypoint>
+          <time>11.0</time>
+          <pose>8 -4 0.02 0 0 -1.57</pose>
+        </waypoint>
+        
+        <!-- ═══ STOP, turn LEFT in place (face +X) ═══ -->
+        <waypoint>
+          <time>12.0</time>
+          <pose>8 -4 0.02 0 0 -0.8</pose>
+        </waypoint>
+        <waypoint>
+          <time>13.0</time>
+          <pose>8 -4 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- ═══ Walk forward (+X) for 5s ═══ -->
+        <waypoint>
+          <time>18.0</time>
+          <pose>13 -4 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- ═══ STOP, turn LEFT in place (face +Y) ═══ -->
+        <waypoint>
+          <time>19.0</time>
+          <pose>13 -4 0.02 0 0 0.8</pose>
+        </waypoint>
+        <waypoint>
+          <time>20.0</time>
+          <pose>13 -4 0.02 0 0 1.57</pose>
+        </waypoint>
+        
+        <!-- ═══ Walk left (+Y) for 4s ═══ -->
+        <waypoint>
+          <time>24.0</time>
+          <pose>13 0 0.02 0 0 1.57</pose>
+        </waypoint>
+        
+        <!-- ═══ STOP, turn RIGHT in place (face +X) ═══ -->
+        <waypoint>
+          <time>25.0</time>
+          <pose>13 0 0.02 0 0 0.8</pose>
+        </waypoint>
+        <waypoint>
+          <time>26.0</time>
+          <pose>13 0 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- ═══ Walk forward (+X) to end ═══ -->
+        <waypoint>
+          <time>30.0</time>
+          <pose>17 0 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+      </trajectory>
+    </script>
+  </actor>
+</sdf>

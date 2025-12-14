@@ -59,6 +59,7 @@ case "$ACTOR_TYPE" in
         DEFAULT_NAME="human_sideways"
         ;;
     stand)
+        Z="${4:-0.0}"
         MODEL_PATH="$MODELS_DIR/Casual female/model.sdf"
         DEFAULT_NAME="human_stand"
         ;;

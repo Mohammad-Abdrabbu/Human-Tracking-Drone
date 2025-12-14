@@ -1,6 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
 from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition
 from launch_ros.actions import Node
 import os
 
@@ -13,6 +14,8 @@ def generate_launch_description():
     follow_params_file = LaunchConfiguration('follow_params_file')
     perception_params_file = LaunchConfiguration('perception_params_file')
     geo_guard_params_file = LaunchConfiguration('geo_guard_params_file')
+    world_name = LaunchConfiguration('world_name')
+    enable_geofence = LaunchConfiguration('enable_geofence')
 
     # Package share dir for sahtd_launch
     launch_share = get_package_share_directory('sahtd_launch')
@@ -54,8 +57,27 @@ def generate_launch_description():
         description='Full path to the geo_guard_node parameter file'
     )
 
+    world_name_arg = DeclareLaunchArgument(
+        'world_name',
+        default_value='default',
+        description='Gazebo world name for topic path derivation'
+    )
+
+    enable_geofence_arg = DeclareLaunchArgument(
+        'enable_geofence',
+        default_value='true',
+        description='Enable geofence nodes (set false for tracking demo scenes)'
+    )
+
+    target_actor_name_arg = DeclareLaunchArgument(
+        'target_actor_name',
+        default_value='person_violator',
+        description='Name of the actor entity to monitor for geofence violations'
+    )
+    target_actor_name = LaunchConfiguration('target_actor_name')
+
     # === Camera bridge (Gazebo → ROS Image) ===
-    # NOTE: Adjust the Gazebo topic if your world/model name changed.
+    # Topic path derived from world_name argument
     camera_bridge_node = Node(
         package='ros_gz_image',
         executable='image_bridge',
@@ -63,10 +85,10 @@ def generate_launch_description():
         output='screen',
         emulate_tty=True,
         arguments=[
-            '/world/default/model/x500_mono_cam_0/link/camera_link/sensor/imager/image'
+            ['/world/', world_name, '/model/x500_mono_cam_0/link/camera_link/sensor/imager/image']
         ],
         remappings=[
-            ('/world/default/model/x500_mono_cam_0/link/camera_link/sensor/imager/image', '/camera/image_raw')
+            (['/world/', world_name, '/model/x500_mono_cam_0/link/camera_link/sensor/imager/image'], '/camera/image_raw')
         ]
     )
 
@@ -96,25 +118,18 @@ def generate_launch_description():
         ],
     )
 
-    # === Geo-guard node ===
+    # === Geo-guard node (conditional on enable_geofence) ===
     geo_guard_node = Node(
         package='sahtd_autonomy',
         executable='geo_guard_node',
         name='geo_guard_node',
         output='screen',
         emulate_tty=True,
+        condition=IfCondition(enable_geofence),
         parameters=[
             geo_guard_params_file,
             {'use_sim_time': use_sim_time}
         ],
-        # If your node uses different topic names, add remappings here, e.g.:
-        # remappings=[
-        #     ('/vehicle_pose_in', '/gp2/vehicle/pose_local'),
-        #     ('/cmd_in', '/gp2/follow/cmd_body'),
-        #     ('/cmd_out', '/gp2/guard/cmd_body'),
-        #     ('/guard/status', '/gp2/guard/status'),
-        #     ('/guard/reason', '/gp2/guard/reason'),
-        # ],
     )
 
     # === Follow node (already working from S1) ===
@@ -137,7 +152,7 @@ def generate_launch_description():
     )
 
     # === Lane B2: Gazebo Pose Bridge (Pose_V → TFMessage) ===
-    # Bridges /world/default/pose/info to ROS as TF messages
+    # Topic path derived from world_name argument
     pose_bridge_node = Node(
         package='ros_gz_bridge',
         executable='parameter_bridge',
@@ -145,37 +160,42 @@ def generate_launch_description():
         output='screen',
         emulate_tty=True,
         arguments=[
-            '/world/default/pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V'
+            ['/world/', world_name, '/pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V']
         ],
         remappings=[
-            ('/world/default/pose/info', '/gp2/world_poses')
+            (['/world/', world_name, '/pose/info'], '/gp2/world_poses')
         ]
     )
 
     # === Lane B2: Actor Pose Selector Node ===
     # Extracts specific actor pose from world_poses and publishes /gp2/target_pose_gt
+    # Only runs when geofence is enabled
     actor_pose_selector_node = Node(
         package='sahtd_autonomy',
         executable='actor_pose_selector_node',
         name='actor_pose_selector_node',
         output='screen',
         emulate_tty=True,
+        condition=IfCondition(enable_geofence),
         parameters=[
-            {'target_actor_name': 'human_violate'},  # Default target
+            {'target_actor_name': target_actor_name},
             {'output_frame_id': 'map'},
             {'publish_rate_hz': 10.0},
+            {'gz_topic': ['/world/', world_name, '/pose/info']},
             {'use_sim_time': use_sim_time}
         ],
     )
 
     # === Lane B2: Target Guard Node (Human-aware geo-guard) ===
     # Monitors target position relative to fence
+    # Only runs when geofence is enabled
     target_guard_node = Node(
         package='sahtd_autonomy',
         executable='target_guard_node',
         name='target_guard_node',
         output='screen',
         emulate_tty=True,
+        condition=IfCondition(enable_geofence),
         parameters=[
             geo_guard_params_file,  # Reuse same fence config
             {'use_sim_time': use_sim_time}
@@ -219,6 +239,9 @@ def generate_launch_description():
         follow_params_arg,
         perception_params_arg,
         geo_guard_params_arg,
+        world_name_arg,
+        enable_geofence_arg,
+        target_actor_name_arg,
         camera_bridge_node,
         yolo_node,
         bytetrack_node,
@@ -226,7 +249,7 @@ def generate_launch_description():
         follow_node,
         pose_bridge_node,
         actor_pose_selector_node,
-        # target_guard_node,  # TEMPORARILY DISABLED for testing
+        target_guard_node,
         target_viz_node,
         image_viewer_node,
     ])

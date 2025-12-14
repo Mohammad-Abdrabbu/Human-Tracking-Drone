@@ -81,8 +81,9 @@ class TargetGuardNode(Node):
     Human-aware geo-guard that monitors target position relative to fence.
     
     Publishes:
-      /gp2/guard/target_status: TARGET_INSIDE_FENCE | TARGET_NEAR_EDGE | TARGET_OUTSIDE_FENCE
-      /gp2/guard/target_reason: Human-readable explanation
+      /sahtd/guard/target_status: TARGET_INSIDE_FENCE | TARGET_NEAR_EDGE | TARGET_OUTSIDE_FENCE
+      /sahtd/guard/target_reason: Human-readable explanation
+      /sahtd/alerts: One-shot alert when violation occurs
     """
 
     # Status constants
@@ -134,14 +135,18 @@ class TargetGuardNode(Node):
         )
 
         # --- Publishers ---
-        self.status_pub = self.create_publisher(String, '/gp2/guard/target_status', qos_status)
-        self.reason_pub = self.create_publisher(String, '/gp2/guard/target_reason', qos_reliable)
+        self.status_pub = self.create_publisher(String, '/sahtd/guard/target_status', qos_status)
+        self.reason_pub = self.create_publisher(String, '/sahtd/guard/target_reason', qos_reliable)
+        self.alerts_pub = self.create_publisher(String, '/sahtd/alerts', qos_status)
 
         # --- State ---
         self._current_status = self.STATUS_INSIDE
         self._current_reason = "init"
         self._last_pose_time = None
         self._has_target = False
+        self._last_x = 0.0
+        self._last_y = 0.0
+        self._violation_alerted = False  # Only alert once per violation
 
         # Timer for periodic publishing
         self._timer = self.create_timer(1.0 / self.publish_rate, self._timer_cb)
@@ -181,11 +186,25 @@ class TargetGuardNode(Node):
         # Update and publish if changed
         if new_status != self._current_status:
             self.get_logger().info(f'TARGET_GUARD: {self._current_status} → {new_status} ({reason})')
+            
+            # Check for violation transition (was inside/near_edge, now outside)
+            if new_status == self.STATUS_OUTSIDE and self._current_status != self.STATUS_OUTSIDE:
+                if not self._violation_alerted:
+                    self._emit_violation_alert(x, y)
+                    self._violation_alerted = True
+            
+            # Reset alert flag when target returns inside
+            if new_status == self.STATUS_INSIDE and self._current_status == self.STATUS_OUTSIDE:
+                self._violation_alerted = False
+            
             self._current_status = new_status
             self._current_reason = reason
             self._publish_status()
         else:
             self._current_reason = reason  # Update reason even if status same
+        
+        self._last_x = x
+        self._last_y = y
 
     def _publish_status(self):
         """Publish current status and reason."""
@@ -196,6 +215,13 @@ class TargetGuardNode(Node):
         reason_msg = String()
         reason_msg.data = self._current_reason
         self.reason_pub.publish(reason_msg)
+
+    def _emit_violation_alert(self, x: float, y: float):
+        """Emit a one-shot violation alert."""
+        alert_msg = String()
+        alert_msg.data = f"HUMAN GEOFENCE VIOLATION: Target exited fence at ({x:.2f}, {y:.2f})"
+        self.alerts_pub.publish(alert_msg)
+        self.get_logger().warn(f"🚨 ALERT: {alert_msg.data}")
 
     def _timer_cb(self):
         """Periodic status publish (even without pose updates)."""

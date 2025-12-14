@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <actor name="person_walk_inside">
+    <!-- Walking actor that stays inside the playground -->
+    <!-- TRIPLED Fence: x=4→28, y=-12→12 -->
+    <pose>16 5 1.0 0 0 0</pose>
+
+    <skin>
+      <filename>model://actor_walk/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+    </skin>
+
+    <animation name="walk">
+      <filename>model://actor_walk/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+      <interpolate_x>true</interpolate_x>
+    </animation>
+
+    <script>
+      <loop>true</loop>
+      <delay_start>5.0</delay_start>
+      <auto_start>true</auto_start>
+
+      <!-- Bigger rectangle inside the tripled fence -->
+      <trajectory id="0" type="walking">
+        
+        <!-- Start at (16, 5) -->
+        <waypoint>
+          <time>0.0</time>
+          <pose>16 5 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- Walk +X -->
+        <waypoint>
+          <time>5.0</time>
+          <pose>24 5 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+        <!-- Turn down (-Y) -->
+        <waypoint>
+          <time>6.0</time>
+          <pose>24 5 0.02 0 0 -1.57</pose>
+        </waypoint>
+        <waypoint>
+          <time>12.0</time>
+          <pose>24 -5 0.02 0 0 -1.57</pose>
+        </waypoint>
+        
+        <!-- Turn -X -->
+        <waypoint>
+          <time>13.0</time>
+          <pose>24 -5 0.02 0 0 3.14</pose>
+        </waypoint>
+        <waypoint>
+          <time>18.0</time>
+          <pose>16 -5 0.02 0 0 3.14</pose>
+        </waypoint>
+        
+        <!-- Turn +Y -->
+        <waypoint>
+          <time>19.0</time>
+          <pose>16 -5 0.02 0 0 1.57</pose>
+        </waypoint>
+        <waypoint>
+          <time>25.0</time>
+          <pose>16 5 0.02 0 0 1.57</pose>
+        </waypoint>
+        
+        <!-- Turn +X to loop -->
+        <waypoint>
+          <time>26.0</time>
+          <pose>16 5 0.02 0 0 0.0</pose>
+        </waypoint>
+        
+      </trajectory>
+    </script>
+  </actor>
+</sdf>

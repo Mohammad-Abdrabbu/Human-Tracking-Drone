@@ -1,0 +1,16 @@
+# Playground fence polygon for Scene 2 (Geo-fence Demo)
+# Vertices in ENU (Gazebo XY plane), counter-clockwise
+# TRIPLED SIZE: x=4→28, y=-12→12 (24m × 24m)
+
+playground_polygon:
+  # Flat list: [x1, y1, x2, y2, x3, y3, x4, y4]
+  vertices: [4.0, -12.0, 28.0, -12.0, 28.0, 12.0, 4.0, 12.0]
+  
+  # Safety margins
+  soft_margin_m: 1.0  # Warning zone before edge
+  
+  # Notes:
+  # - Drone spawns at (0, 0)
+  # - Playground is 4-28m ahead of drone (24m long)
+  # - Playground is 12m to each side (24m wide)
+  # - Violator starts at (10, 0), exits at x>28

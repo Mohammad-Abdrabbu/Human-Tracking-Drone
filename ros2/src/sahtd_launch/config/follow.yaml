@@ -1,13 +1,12 @@
 follow_node:
   ros__parameters:
-    # Image size (should match camera/YOLO config)
-    img_w: 1280
-    img_h: 960
+    # Image size (UPDATED for 640x480 camera)
+    img_w: 640
+    img_h: 480
 
-    # Stand-off / geometry (CALIBRATED 2025-12-09 from 9 W1 bags)
-    # Based on 1529 "good-near" samples: median=167.2px, P75=198.8px
-    stand_off_px: 167.0    # was 300.0 - now set to achievable median h_f
-    max_close_px: 279.0    # was 420.0 - now P75 + 80px margin
+    # Stand-off / geometry
+    stand_off_px: 86.0
+    max_close_px: 143.0
 
     # Locking / hysteresis
     lock_k_frames: 5.0
@@ -19,15 +18,15 @@ follow_node:
     gate_ex: 0.35
 
     # Rate limits
-    rate_limit_vx: 0.15  # W1 tuned: increased from 0.10 for faster acceleration
-    rate_limit_yaw: 0.15  # W1 tuned: increased from 0.10 for faster yaw response
+    rate_limit_vx: 0.25  # Increased for faster acceleration when target moves
+    rate_limit_yaw: 0.15
 
     # Gains
-    kx: 0.012
+    kx: 0.020            # Increased for more aggressive following
     kyaw: 0.7
 
     # Command caps
-    vx_max: 0.8  # W1 tuned: increased from 0.5 to prevent saturation
+    vx_max: 0.8
     yawrate_max: 0.5
 
     # Takeoff / offboard behaviour
@@ -39,29 +38,28 @@ follow_node:
     publish_zero_when_waiting: true
 
     # Bbox velocity estimation (stationary target detection)
-    h_velocity_lpf_alpha: 0.15          # LPF for velocity estimation (0-1, lower=smoother)
-    stationary_threshold_px_s: 8.0      # below this velocity, target is "stationary"
-    stationary_stand_off_boost: 80.0    # extra stand-off (px) when target stationary
+    h_velocity_lpf_alpha: 0.15
+    stationary_threshold_px_s: 4.6
+    stationary_stand_off_boost: 20.0    # Reduced from 42 to prevent excessive standoff
 
     # Proximity brake zone (force stop near stationary target)
-    prox_brake_enable: true             # enable proximity braking
-    prox_brake_hf_thresh: 200.0         # trigger when h_f > this (px)
-    prox_brake_vx_max: 0.10             # max vx when in brake zone (m/s)
-    prox_brake_decel_rate: 0.50         # emergency deceleration (m/s²) - INCREASED
+    prox_brake_enable: true
+    prox_brake_hf_thresh: 103.0         # 67 * 1.54 = 103.2 (scaled)
+    prox_brake_vx_max: 0.10
+    prox_brake_decel_rate: 0.50
 
-    # Progressive speed control (reduce speed as target gets closer)
-    progressive_speed_enable: true      # enable progressive vx_max
-    progressive_hf_start: 100.0         # h_f where speed reduction starts (px)
-    progressive_hf_full: 300.0          # h_f where speed is minimum (px)
-    progressive_vx_min: 0.15            # minimum vx_max when very close (m/s)
+    # Progressive speed control (SCALED for 640x480)
+    progressive_speed_enable: true
+    progressive_hf_start: 51.0          # 33 * 1.54 = 50.8
+    progressive_hf_full: 154.0          # 100 * 1.54 = 154
+    progressive_vx_min: 0.15
 
-    # Three-zone control (Step 1 - FAR/HOVER/NEAR)
-    # Derived from W1_standoff_calibrated analysis: 104 hover samples
-    zone_hover_lower_px: 150.0          # Below this = FAR zone
-    zone_hover_upper_px: 185.0          # Above this (but below near) = transition
-    zone_near_px: 220.0                 # Above this = NEAR zone (no positive vx)
-    zone_hover_yaw_deg: 4.0             # Yaw error must be < this to enter HOVER
-    zone_hover_eR_thresh: 20.0          # |eR| must be < this to enter HOVER (FIX)
+    # Three-zone control (TUNED for better far detection)
+    zone_hover_lower_px: 60.0           # Lowered from 77 - enter FAR sooner
+    zone_hover_upper_px: 80.0           # Lowered from 95 - narrower hover band
+    zone_near_px: 100.0                 # Lowered from 112
+    zone_hover_yaw_deg: 4.0
+    zone_hover_eR_thresh: 11.0
 
     # Altitude hold (FIX for altitude drops)
     alt_hold_enable: true
