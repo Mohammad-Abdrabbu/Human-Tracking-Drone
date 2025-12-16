@@ -82,6 +82,7 @@ class GeoGuardNode(Node):
         self.declare_parameter('hard_margin_m', 0.0)  # 0.0 = disabled for VIOLATION threshold
         self.declare_parameter('debounce_samples', 3)
         self.declare_parameter('min_hold_ms', 200)
+        self.declare_parameter('guard_enabled', True)  # Can be toggled at runtime
 
         verts_param = self.get_parameter('vertices').get_parameter_value().double_array_value
         # flattened list → pairs
@@ -170,10 +171,14 @@ class GeoGuardNode(Node):
 
     def _publish_debug(self):
         """Publish detailed debug info for committee verification."""
+        # Check if guard is enabled (read dynamically for toggling)
+        guard_enabled = bool(self.get_parameter('guard_enabled').value)
+        
         # Debug string
         dbg = String()
         dbg.data = (
             f"state={self._state} "
+            f"enabled={str(guard_enabled).lower()} "
             f"inside={str(self._last_inside).lower()} "
             f"dist_m={self._last_dist:.2f} "
             f"soft_m={self.soft_margin:.2f} "
@@ -278,6 +283,11 @@ class GeoGuardNode(Node):
         # --- Override behavior ---
         if self._state == 'NORMAL':
             return  # Follower is authoritative; do nothing
+
+        # Check if guard is enabled (read dynamically for toggling)
+        guard_enabled = bool(self.get_parameter('guard_enabled').value)
+        if not guard_enabled:
+            return  # Guard disabled, skip override
 
         # HOLD or VIOLATION → publish override
         out = Twist()
