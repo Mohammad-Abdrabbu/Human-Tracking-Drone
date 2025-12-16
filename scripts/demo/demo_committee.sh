@@ -49,7 +49,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--guard on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--guard on|off] [--spawn] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -63,11 +63,12 @@ Subcommands:
   reset     Stop all services and clean up
 
 Options for 'up':
-  --guard on|off    Enable or disable geofence (default: on)
-  --spawn           Spawn actor after stack is ready
-  --autoselect      Auto-select target after spawn
-  --world <name>    Gazebo world name (default: $DEFAULT_WORLD)
-  --timeout <sec>   Timeout for topic checks (default: $DEFAULT_TIMEOUT)
+  --guard on|off       Enable or disable geofence (default: on)
+  --spawn              Spawn actor after stack is ready
+  --autoselect         Auto-select target after spawn
+  --policy best|first  Selection policy for autoselect (default: best)
+  --world <name>       Gazebo world name (default: $DEFAULT_WORLD)
+  --timeout <sec>      Timeout for topic checks (default: $DEFAULT_TIMEOUT)
 
 Options for 'spawn':
   --world <name>      Gazebo world name (default: $DEFAULT_WORLD)
@@ -79,6 +80,7 @@ Options for 'select':
 
 Examples:
   demo_committee.sh up --guard on --spawn --autoselect
+  demo_committee.sh up --guard on --spawn --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -143,6 +145,7 @@ cmd_up() {
     local autoselect=false
     local world="$DEFAULT_WORLD"
     local timeout=$DEFAULT_TIMEOUT
+    local policy="best"
     
     # Parse args
     while [[ $# -gt 0 ]]; do
@@ -152,6 +155,7 @@ cmd_up() {
             --autoselect) autoselect=true; shift ;;
             --world) world="$2"; shift 2 ;;
             --timeout) timeout="$2"; shift 2 ;;
+            --policy) policy="$2"; shift 2 ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -221,7 +225,7 @@ cmd_up() {
     # Step 5: Auto-select
     if [ "$autoselect" = true ]; then
         echo ""
-        cmd_select --policy best --timeout 15
+        cmd_select --policy "$policy" --timeout 10
     fi
     
     # Final status

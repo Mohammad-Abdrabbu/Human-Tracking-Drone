@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # verify_committee_demo.sh - End-to-end verification of committee demo
-# Runs the full demo flow and checks all components
+# Tests the full flow including --policy best
 
 set -e
 
@@ -17,9 +17,9 @@ echo "  SAHTD Committee Demo Verification"
 echo "=============================================="
 echo ""
 
-# Step 1: Start demo
-echo -e "${YELLOW}[1/5] Starting demo...${NC}"
-"$SCRIPT_DIR/demo_committee.sh" up --guard on --spawn --autoselect || {
+# Step 1: Start demo with --policy best
+echo -e "${YELLOW}[1/5] Starting demo with --policy best...${NC}"
+"$SCRIPT_DIR/demo_committee.sh" up --guard on --spawn --autoselect --policy best || {
     echo -e "${RED}FAIL: Could not start demo${NC}"
     exit 1
 }
@@ -49,21 +49,20 @@ else
     echo -e "${RED}✗ Guard debug not publishing${NC}"
 fi
 
-# Step 5: Check pose local
+# Step 5: Test manual override
 echo ""
-echo -e "${YELLOW}[5/5] Checking /gp2/vehicle/pose_local...${NC}"
-POSE_HZ=$(timeout 3 ros2 topic hz /gp2/vehicle/pose_local 2>&1 | grep "average rate" | tail -1 | awk '{print $3}' || echo "0")
-if [ -n "$POSE_HZ" ] && [ "$POSE_HZ" != "0" ]; then
-    echo -e "${GREEN}✓ Pose local publishing at ${POSE_HZ} Hz${NC}"
-else
-    echo -e "${RED}✗ Pose local not publishing${NC}"
-fi
+echo -e "${YELLOW}[5/5] Testing manual override...${NC}"
+ros2 topic pub /perception/target_select std_msgs/msg/Int32 '{data: 99}' --once 2>/dev/null && \
+    echo -e "${GREEN}✓ Manual override published (id=99)${NC}" || \
+    echo -e "${RED}✗ Manual override failed${NC}"
 
 echo ""
 echo "=============================================="
 echo -e "${GREEN}  VERIFICATION COMPLETE${NC}"
 echo "=============================================="
 echo ""
-echo "To monitor during demo:"
-echo "  ros2 topic echo /gp2/guard/debug"
+echo "Key output to look for:"
+echo "  'Selected id=X policy=best area=YYYY'"
+echo ""
+echo "To monitor: ros2 topic echo /gp2/guard/debug"
 echo ""

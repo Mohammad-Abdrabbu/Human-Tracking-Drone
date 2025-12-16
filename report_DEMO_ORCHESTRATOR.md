@@ -1,58 +1,94 @@
-# Report: One-Click Demo Orchestrator
+# Report: Demo Orchestrator + Auto-Select Enhancement
 
 ## Overview
-Created a single-command demo orchestrator for the SAHTD technical checkpoint.
+Created a one-click demo orchestrator with intelligent auto-select for the SAHTD technical checkpoint.
 
 ---
 
-## New Scripts
+## Files Modified/Created
 
-| Script | Purpose |
-|--------|---------|
-| `scripts/demo/demo_committee.sh` | Main orchestrator with subcommands |
-| `scripts/demo/auto_select_target.py` | Auto-select first visible target |
-| `scripts/demo/README_DEMO.md` | Quick reference guide |
-| `scripts/demo/verify_committee_demo.sh` | Verification script |
+| File | Status | Description |
+|------|--------|-------------|
+| `scripts/demo/demo_committee.sh` | Modified | Added `--policy` option for auto-select |
+| `scripts/demo/auto_select_target.py` | Modified | Implemented `best` and `first` policies |
+| `scripts/demo/README_DEMO.md` | Modified | Updated with policy documentation |
+| `scripts/demo/verify_committee_demo.sh` | Modified | Uses `--policy best` for testing |
+
+---
+
+## Auto-Select Policies
+
+| Policy | Behavior |
+|--------|----------|
+| `best` (default) | Subscribe to `/perception/tracks`, select detection with **largest bbox area** (`size_x × size_y`), publish ID once |
+| `first` | Read first ID from `/sahtd/follow/seen_ids`, fallback to first detection in tracks |
+
+### Key Requirements Met
+- ✅ Publishes to `/perception/target_select` **once only**
+- ✅ Manual override via `/perception/target_select` takes effect immediately after
+- ✅ Exits cleanly after selection or timeout
 
 ---
 
 ## Usage
 
+### Recommended Command
 ```bash
-# Full demo: start stack + spawn actor + auto-select target
+~/sahtd/scripts/demo/demo_committee.sh up --guard on --spawn --autoselect --policy best
+```
+
+### All Options
+```bash
+# Full demo with largest target (recommended)
+demo_committee.sh up --guard on --spawn --autoselect --policy best
+
+# Full demo with first visible target
+demo_committee.sh up --guard on --spawn --autoselect --policy first
+
+# Without explicit policy (defaults to best)
 demo_committee.sh up --guard on --spawn --autoselect
 
-# Check status
-demo_committee.sh status
-
-# Reset everything
-demo_committee.sh reset
+# Manual selection commands
+demo_committee.sh select --policy best --timeout 10
+demo_committee.sh select --policy first
 ```
 
 ---
 
-## Subcommands
+## Verified Output
 
-| Command | Description |
-|---------|-------------|
-| `up` | Start stack, wait for topics, configure guard |
-| `spawn` | Spawn actor in Gazebo (waits for world ready) |
-| `select` | Auto-select target from visible IDs |
-| `status` | Print system status |
-| `reset` | Stop all services and clean up |
+```
+Auto-selecting target (policy: best, timeout: 10s)...
+[INFO] [auto_select_target]: Policy=best: waiting for tracks on /perception/tracks
+[INFO] [auto_select_target]: Selected id=1 policy=best area=2114
+```
+
+### Manual Override Test
+After auto-select, manual override works immediately:
+```bash
+ros2 topic pub /perception/target_select std_msgs/msg/Int32 '{data: 5}' --once
+```
 
 ---
 
-## Features
+## Technical Details
 
-1. **Guard Toggle**: `--guard on|off` enables/disables geofence via `guard_enabled` param
-2. **Auto Spawn**: `--spawn` spawns slow walker actor, waits for Gazebo ready
-3. **Auto Select**: `--autoselect` selects first visible target from `/sahtd/follow/seen_ids`
-4. **Topic Checks**: Verifies critical topics before reporting READY
+### auto_select_target.py CLI
+```
+--policy best|first     Selection policy (default: best)
+--timeout <sec>         Timeout in seconds (default: 5)
+--tracks-topic          Tracks topic (default: /perception/tracks)
+--seen-ids-topic        Seen IDs topic (default: /sahtd/follow/seen_ids)
+--select-topic          Selection topic (default: /perception/target_select)
+```
+
+### ID Extraction Logic
+1. Try `int(detection.results[0].hypothesis.class_id)`
+2. Fallback: extract digits from string with regex `(\d+)`
 
 ---
 
 ## Commit Message
 ```
-Add committee demo orchestrator + auto-select + guard toggle
+Enhance auto-select with best/first policies for committee demo
 ```

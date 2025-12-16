@@ -4,90 +4,62 @@ Quick reference for running the human-tracking drone demo at technical checkpoin
 
 ---
 
-## Quick Start (5 Steps)
+## Quick Start (Recommended)
 
 ```bash
-# 1. Reset everything (clean slate)
-~/sahtd/scripts/demo/demo_committee.sh reset
-
-# 2. Start the full stack with guard + spawn + autoselect
-~/sahtd/scripts/demo/demo_committee.sh up --guard on --spawn --autoselect
-
-# 3. (Wait for "DEMO READY" message)
-
-# 4. Monitor guard status during demo
-ros2 topic echo /gp2/guard/debug
-
-# 5. When done, reset
-~/sahtd/scripts/demo/demo_committee.sh reset
+# Full demo with best policy (selects largest target)
+~/sahtd/scripts/demo/demo_committee.sh up --guard on --spawn --autoselect --policy best
 ```
 
 ---
 
-## Full Command Reference
+## All Commands
 
 ### Start Demo
 ```bash
-# Full demo with all features
-demo_committee.sh up --guard on --spawn --autoselect
+# Full demo with largest target (recommended)
+demo_committee.sh up --guard on --spawn --autoselect --policy best
+
+# Full demo with first visible target
+demo_committee.sh up --guard on --spawn --autoselect --policy first
 
 # Track-only (no geofence)
 demo_committee.sh up --guard off --spawn --autoselect
 
-# Manual target selection (no autoselect)
+# Manual target selection
 demo_committee.sh up --guard on --spawn
 ```
 
-### Spawn Actor Manually
+### Individual Commands
 ```bash
-demo_committee.sh spawn
+demo_committee.sh spawn              # Spawn actor
+demo_committee.sh select --policy best   # Auto-select largest
+demo_committee.sh select --policy first  # Auto-select first
+demo_committee.sh status             # Check status
+demo_committee.sh reset              # Reset everything
 ```
 
-### Select Target Manually
+### Manual Target Override
 ```bash
-# Auto-select largest target
-demo_committee.sh select --policy best
-
-# Or publish directly
-ros2 topic pub /perception/target_select std_msgs/msg/Int32 '{data: 1}' --once
-```
-
-### Check Status
-```bash
-demo_committee.sh status
-```
-
-### Reset/Cleanup
-```bash
-demo_committee.sh reset
+ros2 topic pub /perception/target_select std_msgs/msg/Int32 '{data: 5}' --once
 ```
 
 ---
 
-## Expected Outputs
+## Auto-Select Policies
 
-### After `up --spawn --autoselect`
+| Policy | Behavior |
+|--------|----------|
+| `best` | Subscribe to `/perception/tracks`, select detection with **largest bbox area** |
+| `first` | Select first ID from `/sahtd/follow/seen_ids` (or first track) |
+
+---
+
+## Expected Output
+
 ```
-════════════════════════════════════════════════════════════
-  SAHTD Committee Demo Orchestrator
-════════════════════════════════════════════════════════════
-
-✓ Stack already running
-  Checking /gp2/vehicle/pose_local... ✓
-  Checking /gp2/guard/status... ✓
-  Checking /perception/tracks... ✓
-
-✓ Geofence enabled (default)
-Selected target id=1 using policy=best
-
-╔══════════════════════════════════════════════════════════╗
-║                     DEMO READY                           ║
-╚══════════════════════════════════════════════════════════╝
-```
-
-### Guard Debug Output
-```
-state=NORMAL enabled=true inside=true dist_m=5.23 soft_m=0.80 hard_m=0.30 pose=(x=2.1,y=-0.5) nearest_edge=0
+Auto-selecting target (policy: best, timeout: 10s)...
+Selected id=1 policy=best area=12500
 ```
 
 ---
@@ -96,14 +68,6 @@ state=NORMAL enabled=true inside=true dist_m=5.23 soft_m=0.80 hard_m=0.30 pose=(
 
 | Issue | Solution |
 |-------|----------|
-| Topics not publishing | `demo_committee.sh reset` then try again |
-| PX4 not connecting | Check `tmux attach -t sahtd_stack` top pane |
-| Actor not visible | Verify camera is working: `ros2 topic hz /camera/image_raw` |
-| No tracks | YOLO may need warmup; wait 5-10s |
-
----
-
-## Verification Script
-```bash
-~/sahtd/scripts/demo/verify_committee_demo.sh
-```
+| No targets found | Ensure actor is spawned and visible to camera |
+| Wrong target selected | Use manual override: `ros2 topic pub ...` |
+| Guard blocking movement | Check `ros2 topic echo /gp2/guard/debug` |
