@@ -22,7 +22,7 @@
   <delay_start>40.0</delay_start>
   <auto_start>true</auto_start>
 
-  <!-- W1: SLOW walk - same path as actor_walk, but 2x slower (times scaled by 2) -->
+  <!-- W1: EXTRA SLOW walk - ~0.25 m/s (very leisurely pace) -->
   <trajectory id="0" type="walking">
     <!-- Start at x=3, y=0 facing +X -->
     <waypoint>
@@ -30,39 +30,39 @@
       <pose>3 0 0.02 0 0 0.0</pose>
     </waypoint>
 
-    <!-- Straight +X (~0.5 m/s instead of 1 m/s) -->
+    <!-- Straight +X (~0.25 m/s) -->
     <waypoint>
-      <time>10.0</time>
+      <time>20.0</time>
       <pose>8 0 0.02 0 0 0.0</pose>
     </waypoint>
 
     <!-- Gentle RIGHT bend (toward −Y) -->
     <waypoint>
-      <time>20.0</time>
+      <time>40.0</time>
       <pose>13 -1.0 0.02 0 0 -0.35</pose>  <!-- ~−20° -->
     </waypoint>
     <waypoint>
-      <time>30.0</time>
+      <time>60.0</time>
       <pose>18 -2.0 0.02 0 0 -0.79</pose>  <!-- ~−45° -->
     </waypoint>
     <waypoint>
-      <time>40.0</time>
+      <time>80.0</time>
       <pose>23 -1.0 0.02 0 0 -0.35</pose>
     </waypoint>
 
     <!-- Left back to centerline (yaw → 0) -->
     <waypoint>
-      <time>50.0</time>
+      <time>100.0</time>
       <pose>28 0.0 0.02 0 0 -0.10</pose>
     </waypoint>
     <waypoint>
-      <time>60.0</time>
+      <time>120.0</time>
       <pose>33 0.0 0.02 0 0 0.0</pose>
     </waypoint>
 
     <!-- Continue straight +X -->
     <waypoint>
-      <time>80.0</time>
+      <time>160.0</time>
       <pose>43 0.0 0.02 0 0 0.0</pose>
     </waypoint>
   </trajectory>
