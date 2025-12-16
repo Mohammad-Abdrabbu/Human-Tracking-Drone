@@ -238,11 +238,24 @@ class FollowNode(Node):
         )
         self.pose_pub = self.create_publisher(PoseStamped, '/gp2/vehicle/pose_local', qos_pose)
 
-        self._last_pose_pub_time = self.get_clock().now()
+        # Diagnostic topic for pose debugging
+        self.pose_debug_pub = self.create_publisher(String, '/gp2/vehicle/pose_debug', 10)
+
+        # Cached NED position from MAVSDK telemetry (for timer-based publishing)
+        self._cached_ned = {'north': 0.0, 'east': 0.0, 'down': 0.0}
+        self._ned_valid = False  # True once we've received telemetry
+        self._ned_lock = threading.Lock()
+        self._pose_pub_count = 0  # Counter for diagnostic throttling
+
+        # 20 Hz wall-clock timer for pose publishing (independent of use_sim_time/clock)
+        # Using threading instead of ROS timer to avoid dependency on /clock topic
+        self._pose_timer_running = True
+        self._pose_timer_thread = threading.Thread(target=self._pose_timer_loop, daemon=True)
+        self._pose_timer_thread.start()
 
         self.get_logger().info(
             'Republishing MAVSDK local pose as ENU → /gp2/vehicle/pose_local '
-            '(frame_id=map). Mapping: x=east_m, y=north_m, z=-down_m'
+            '(frame_id=map, 20Hz wall-clock timer). Mapping: x=east_m, y=north_m, z=-down_m'
         )
 
         # Selection
@@ -362,23 +375,51 @@ class FollowNode(Node):
             self._fsm = S.SEARCH
         self.get_logger().warn('[reset] follow_node state reset to SEARCH; target history cleared')
 
-    # --- NEW: Gate A helper (NED→ENU) ---
-    def publish_pose_local_from_ned(self, north_m: float, east_m: float, down_m: float):
-        now = self.get_clock().now()
-        # (optional) throttle to ~10–20 Hz if your control loop runs faster
-        if (now - self._last_pose_pub_time).nanoseconds < int(1e9 / 20):
-            return
-        self._last_pose_pub_time = now
+    # --- Cache NED position from telemetry (called by async watcher) ---
+    def _cache_ned_position(self, north_m: float, east_m: float, down_m: float):
+        """Cache NED position from MAVSDK telemetry. Timer callback publishes."""
+        with self._ned_lock:
+            self._cached_ned['north'] = float(north_m)
+            self._cached_ned['east'] = float(east_m)
+            self._cached_ned['down'] = float(down_m)
+            self._ned_valid = True
 
-        ps = PoseStamped()
-        ps.header.stamp = now.to_msg()
-        ps.header.frame_id = 'map'  # ENU world frame
-        ps.pose.position.x = float(east_m)    # ENU X = East
-        ps.pose.position.y = float(north_m)   # ENU Y = North
-        ps.pose.position.z = float(-down_m)   # ENU Z = Up
-        # orientation not required by guard; keep identity
-        ps.pose.orientation.w = 1.0
-        self.pose_pub.publish(ps)
+    # --- Wall-clock timer loop for continuous pose publishing (20 Hz) ---
+    def _pose_timer_loop(self):
+        """Publish cached NED→ENU pose at steady 20 Hz using wall clock (not sim time)."""
+        period = 1.0 / 20.0  # 50ms
+        while self._pose_timer_running and rclpy.ok():
+            t0 = time.time()
+            
+            with self._ned_lock:
+                north = self._cached_ned['north']
+                east = self._cached_ned['east']
+                down = self._cached_ned['down']
+                valid = self._ned_valid
+
+            # Use wall clock for timestamp to avoid sim time dependency
+            now_sec = time.time()
+            ps = PoseStamped()
+            ps.header.stamp.sec = int(now_sec)
+            ps.header.stamp.nanosec = int((now_sec - int(now_sec)) * 1e9)
+            ps.header.frame_id = 'map'  # ENU world frame
+            ps.pose.position.x = float(east)     # ENU X = East
+            ps.pose.position.y = float(north)    # ENU Y = North
+            ps.pose.position.z = float(-down)    # ENU Z = Up
+            ps.pose.orientation.w = 1.0
+            self.pose_pub.publish(ps)
+
+            # Publish diagnostic at ~2 Hz (every 10th call)
+            self._pose_pub_count += 1
+            if self._pose_pub_count >= 10:
+                self._pose_pub_count = 0
+                source = 'mavsdk' if valid else 'zero'
+                diag_msg = f"enu=({east:.2f},{north:.2f},{-down:.2f}) source={source} rate_hz=20"
+                self.pose_debug_pub.publish(String(data=diag_msg))
+
+            # Wall-clock sleep for consistent 20 Hz
+            elapsed = time.time() - t0
+            time.sleep(max(0.0, period - elapsed))
 
     # ---- MAVSDK worker (async)
     async def _async_mav(self):
@@ -398,7 +439,7 @@ class FollowNode(Node):
             async for p in drone.telemetry.position():
                 self._rel_alt = float(p.relative_altitude_m)
         
-        # --- NEW: local NED → ENU pose republisher (Gate A) ---
+        # --- Cache NED position from telemetry (timer publishes) ---
         async def _watch_pvn():
             async for pvn in drone.telemetry.position_velocity_ned():
                 try:
@@ -407,7 +448,7 @@ class FollowNode(Node):
                     d = float(pvn.position.down_m)
                 except Exception:
                     continue
-                self.publish_pose_local_from_ned(n, e, d)
+                self._cache_ned_position(n, e, d)
 
         watcher_ia  = asyncio.create_task(_watch_in_air())
         watcher_pos = asyncio.create_task(_watch_pos())
