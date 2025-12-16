@@ -32,6 +32,7 @@ setup(
             'actor_pose_selector_node = sahtd_autonomy.helpers.actor_pose_selector_node:main',
             'target_guard_node = sahtd_autonomy.helpers.target_guard_node:main',
             'target_select_helper_node = sahtd_autonomy.helpers.target_select_helper_node:main',
+            'event_logger_node = sahtd_autonomy.monitoring.sahtd_event_logger_node:main',
         ],},
 
 

@@ -35,6 +35,9 @@ Thumbs.db
 *.mp4
 bags/
 
+# Event logs (keep folder, ignore data)
+data/logs/*.jsonl
+
 # (Optional) If you don't want to commit YOLO weights / zips, uncomment:
 *.zip
 models/*.pt

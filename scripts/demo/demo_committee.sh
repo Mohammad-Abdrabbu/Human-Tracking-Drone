@@ -3,7 +3,7 @@
 # Single command to bring up, configure, and run the full SAHTD demo
 #
 # Usage:
-#   demo_committee.sh up [--guard on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
+#   demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
 #   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
 #   demo_committee.sh select [--policy best|first] [--timeout <sec>]
 #   demo_committee.sh status
@@ -26,6 +26,7 @@ export SAHTD_ROOT
 SESSION_NAME="sahtd_stack"
 DEFAULT_WORLD="default"
 DEFAULT_ACTOR_SDF="$SAHTD_ROOT/simulation/models/actor_walk_slow/model.sdf"
+EVENTS_LOG_FILE="$HOME/sahtd/data/logs/events.jsonl"
 DEFAULT_TIMEOUT=30
 
 # === Helper Functions ===
@@ -49,7 +50,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--guard on|off] [--spawn] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -65,6 +66,7 @@ Subcommands:
 Options for 'up':
   --guard on|off       Enable or disable geofence (default: on)
   --markers on|off     Spawn fence markers in Gazebo (default: on)
+  --events on|off      Enable event logging (default: on)
   --spawn              Spawn actor after stack is ready
   --autoselect         Auto-select target after spawn
   --policy best|first  Selection policy for autoselect (default: best)
@@ -80,8 +82,8 @@ Options for 'select':
   --timeout <sec>      Timeout for track detection (default: 10)
 
 Examples:
-  demo_committee.sh up --guard on --spawn --autoselect
-  demo_committee.sh up --guard on --markers on --spawn --autoselect --policy best
+  demo_committee.sh up --guard on --events on --spawn --autoselect
+  demo_committee.sh up --guard on --markers on --events on --spawn --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -143,6 +145,7 @@ wait_for_gazebo_ready() {
 cmd_up() {
     local guard="on"
     local markers="on"
+    local events="on"
     local spawn=false
     local autoselect=false
     local world="$DEFAULT_WORLD"
@@ -154,6 +157,7 @@ cmd_up() {
         case $1 in
             --guard) guard="$2"; shift 2 ;;
             --markers) markers="$2"; shift 2 ;;
+            --events) events="$2"; shift 2 ;;
             --spawn) spawn=true; shift ;;
             --autoselect) autoselect=true; shift ;;
             --world) world="$2"; shift 2 ;;
@@ -225,6 +229,21 @@ cmd_up() {
             echo -e "${YELLOW}  ⚠ Could not spawn markers (continuing anyway)${NC}"
     fi
     
+    # Step 4b: Start event logger
+    if [ "$events" = "on" ]; then
+        echo ""
+        echo -e "${YELLOW}Starting event logger...${NC}"
+        # Check if already running
+        if ros2 node list 2>/dev/null | grep -q "event_logger_node"; then
+            echo -e "${GREEN}  ✓ Event logger already running${NC}"
+        else
+            # Start in background
+            ros2 run sahtd_autonomy event_logger_node &>/dev/null &
+            sleep 1
+            echo -e "${GREEN}  ✓ Event logger started${NC}"
+        fi
+    fi
+    
     # Step 5: Spawn actor
     if [ "$spawn" = true ]; then
         echo ""
@@ -254,6 +273,13 @@ cmd_up() {
     echo "  To change target: ros2 topic pub /perception/target_select std_msgs/msg/Int32 '{data: <ID>}' --once"
     echo "  To view guard:    ros2 topic echo /gp2/guard/debug"
     echo "  To attach stack:  tmux attach -t $SESSION_NAME"
+    if [ "$events" = "on" ]; then
+        echo ""
+        echo -e "${CYAN}Event Logging:${NC}"
+        echo "  Log file:         $EVENTS_LOG_FILE"
+        echo "  Live view:        tail -f $EVENTS_LOG_FILE"
+        echo "  ROS topic:        ros2 topic echo /sahtd/events"
+    fi
     echo ""
 }
 
@@ -287,13 +313,18 @@ cmd_spawn() {
     
     # Spawn via Gazebo service using sdf_filename (path) - matches spawn_actor.sh
     # Position: 3m in front of drone, slightly above ground
-    gz service -s /world/$world/create \
+    local spawn_result
+    if gz service -s /world/$world/create \
         --reqtype gz.msgs.EntityFactory \
         --reptype gz.msgs.Boolean \
         --timeout 5000 \
-        --req "sdf_filename: \"$actor_sdf\", name: \"human_target\", allow_renaming: true, pose: {position: {x: 3.0, y: 0.0, z: 1.0}}" && \
-        echo -e "${GREEN}  ✓ Actor spawned${NC}" || \
+        --req "sdf_filename: \"$actor_sdf\", name: \"human_target\", allow_renaming: true, pose: {position: {x: 3.0, y: 0.0, z: 1.0}}"; then
+        echo -e "${GREEN}  ✓ Actor spawned${NC}"
+        # Log spawn event
+        python3 "$SCRIPT_DIR/log_event.py" ACTOR_SPAWNED "{\"actor\": \"human_target\", \"world\": \"$world\", \"sdf\": \"$(basename $actor_sdf)\"}" --source demo_spawn 2>/dev/null || true
+    else
         echo -e "${RED}  ✗ Failed to spawn (is Gazebo running?)${NC}"
+    fi
 }
 
 # === Subcommand: select ===
@@ -362,6 +393,9 @@ cmd_status() {
 
 cmd_reset() {
     echo -e "${YELLOW}Resetting demo...${NC}"
+    
+    # Log reset event before actually resetting
+    python3 "$SCRIPT_DIR/log_event.py" DEMO_RESET '{}' --source demo_reset 2>/dev/null || true
     
     # Remove fence markers (best-effort)
     if [ -f "$SCRIPT_DIR/remove_fence_markers.sh" ]; then
