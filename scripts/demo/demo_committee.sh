@@ -64,6 +64,7 @@ Subcommands:
 
 Options for 'up':
   --guard on|off       Enable or disable geofence (default: on)
+  --markers on|off     Spawn fence markers in Gazebo (default: on)
   --spawn              Spawn actor after stack is ready
   --autoselect         Auto-select target after spawn
   --policy best|first  Selection policy for autoselect (default: best)
@@ -80,7 +81,7 @@ Options for 'select':
 
 Examples:
   demo_committee.sh up --guard on --spawn --autoselect
-  demo_committee.sh up --guard on --spawn --autoselect --policy best
+  demo_committee.sh up --guard on --markers on --spawn --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -141,6 +142,7 @@ wait_for_gazebo_ready() {
 
 cmd_up() {
     local guard="on"
+    local markers="on"
     local spawn=false
     local autoselect=false
     local world="$DEFAULT_WORLD"
@@ -151,6 +153,7 @@ cmd_up() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --guard) guard="$2"; shift 2 ;;
+            --markers) markers="$2"; shift 2 ;;
             --spawn) spawn=true; shift ;;
             --autoselect) autoselect=true; shift ;;
             --world) world="$2"; shift 2 ;;
@@ -213,7 +216,16 @@ cmd_up() {
         ros2 param set /geo_guard_node guard_enabled true 2>/dev/null || true
     fi
     
-    # Step 4: Spawn actor
+    # Step 4: Spawn fence markers
+    if [ "$markers" = "on" ]; then
+        echo ""
+        echo -e "${YELLOW}Spawning fence markers...${NC}"
+        python3 "$SCRIPT_DIR/spawn_fence_markers.py" --world "$world" && \
+            echo -e "${GREEN}  ✓ Fence markers visible${NC}" || \
+            echo -e "${YELLOW}  ⚠ Could not spawn markers (continuing anyway)${NC}"
+    fi
+    
+    # Step 5: Spawn actor
     if [ "$spawn" = true ]; then
         echo ""
         cmd_spawn --world "$world"
@@ -350,6 +362,12 @@ cmd_status() {
 
 cmd_reset() {
     echo -e "${YELLOW}Resetting demo...${NC}"
+    
+    # Remove fence markers (best-effort)
+    if [ -f "$SCRIPT_DIR/remove_fence_markers.sh" ]; then
+        echo -e "${YELLOW}Removing fence markers...${NC}"
+        bash "$SCRIPT_DIR/remove_fence_markers.sh" 2>/dev/null || true
+    fi
     
     # Use existing reset script if available
     if [ -f "$SAHTD_ROOT/scripts/debug/reset_demo.sh" ]; then
