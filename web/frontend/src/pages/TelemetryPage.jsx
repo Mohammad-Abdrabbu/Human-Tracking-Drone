@@ -130,7 +130,8 @@ function TelemetryPage() {
                 <header className="telem-header">
                     <h1 className="telem-title">Telemetry Dashboard</h1>
                     <div className="telem-header-actions">
-                        <Link to="/app" className="telem-link">← Control Panel</Link>
+                        <Link to="/app" className="telem-link">Control Panel</Link>
+                        <Link to="/app/map" className="telem-link">Map</Link>
                         <button className="telem-btn-outlined" onClick={handleLogout}>Logout</button>
                     </div>
                 </header>
@@ -256,7 +257,6 @@ function drawChart(canvas, buffer, fieldPath, color) {
     ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
     ctx.fillRect(0, 0, w, h);
 
-    // Get values for last 60s
     const now = Date.now();
     const points = [];
     for (const m of buffer) {
@@ -291,7 +291,6 @@ function drawChart(canvas, buffer, fieldPath, color) {
         maxVal += 1;
     }
 
-    // Draw grid
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -299,7 +298,6 @@ function drawChart(canvas, buffer, fieldPath, color) {
     ctx.lineTo(w - padding, h - padding);
     ctx.stroke();
 
-    // Draw line
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -316,7 +314,6 @@ function drawChart(canvas, buffer, fieldPath, color) {
     }
     ctx.stroke();
 
-    // Draw labels
     ctx.fillStyle = '#94a3b8';
     ctx.font = '10px system-ui';
     ctx.textAlign = 'left';

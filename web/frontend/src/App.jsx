@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.jsx';
 import AppShell from './pages/AppShell.jsx';
 import TelemetryPage from './pages/TelemetryPage.jsx';
+import MapPage from './pages/MapPage.jsx';
 import { isAuthenticated } from './auth';
 
 function RequireAuth({ children }) {
@@ -32,6 +33,14 @@ function App() {
           </RequireAuth>
         }
       />
+      <Route
+        path="/app/map"
+        element={
+          <RequireAuth>
+            <MapPage />
+          </RequireAuth>
+        }
+      />
       {/* Default: go to /login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
@@ -39,3 +48,4 @@ function App() {
 }
 
 export default App;
+

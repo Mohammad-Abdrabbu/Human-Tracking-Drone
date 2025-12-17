@@ -179,6 +179,9 @@ function AppShell() {
         <header className="sahtd-app-header">
           <h1 className="sahtd-title">SAHTD Control Panel</h1>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Link to="/app/map" className="sahtd-button-outlined" style={{ textDecoration: 'none' }}>
+              Map
+            </Link>
             <Link to="/app/telemetry" className="sahtd-button-outlined" style={{ textDecoration: 'none' }}>
               Telemetry
             </Link>

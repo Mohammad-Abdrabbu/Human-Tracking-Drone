@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconne
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import yaml
 
 # Load .env variables at import time
 load_dotenv()
@@ -25,6 +26,9 @@ EVENTS_LOG_PATH = Path(os.getenv("EVENTS_LOG_PATH", os.path.expanduser("~/sahtd/
 
 # Telemetry log file path (JSONL format) - written by ROS telemetry_bridge_node
 TELEMETRY_LOG_PATH = Path(os.getenv("TELEMETRY_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/telemetry.jsonl")))
+
+# Fence YAML path (geo_guard.yaml from ROS)
+FENCE_YAML_PATH = Path(os.getenv("FENCE_YAML_PATH", os.path.expanduser("~/sahtd/ros2/src/sahtd_launch/config/geo_guard.yaml")))
 
 # Hardcoded user store for now (we can move to DB later)
 USERS_DB = {
@@ -175,6 +179,67 @@ async def health_check():
     Later we can include ROS/Drone status here.
     """
     return {"status": "ok"}
+
+
+@app.get("/guard/fence", tags=["guard"])
+async def get_fence():
+    """
+    Return fence polygon vertices from geo_guard.yaml.
+    
+    Response format:
+    {
+        "frame": "ENU",
+        "vertices": [{"x": 0.0, "y": 0.0}, ...],
+        "closed": true,
+        "margin_m": 0.0
+    }
+    """
+    if not FENCE_YAML_PATH.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fence YAML not found at {FENCE_YAML_PATH}",
+        )
+    
+    try:
+        with open(FENCE_YAML_PATH, "r") as f:
+            config = yaml.safe_load(f)
+        
+        # Navigate to the geo_guard_node ros__parameters
+        params = config.get("geo_guard_node", {}).get("ros__parameters", {})
+        
+        # Get vertices (flat array: x1, y1, x2, y2, ...)
+        vertices_flat = params.get("vertices", [])
+        if not vertices_flat or len(vertices_flat) % 2 != 0:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Invalid vertices in fence YAML (expected flat array with even length)",
+            )
+        
+        # Convert to list of {x, y} objects
+        vertices = []
+        for i in range(0, len(vertices_flat), 2):
+            vertices.append({
+                "x": float(vertices_flat[i]),
+                "y": float(vertices_flat[i + 1]),
+            })
+        
+        return {
+            "frame": "ENU",
+            "vertices": vertices,
+            "closed": True,
+            "margin_m": float(params.get("soft_margin_m", 0.0)),
+        }
+        
+    except yaml.YAMLError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to parse fence YAML: {e}",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error reading fence config: {e}",
+        )
 
 
 @app.post("/auth/login", response_model=TokenResponse, tags=["auth"])
