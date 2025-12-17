@@ -16,7 +16,6 @@ function MapPage() {
     const [fenceError, setFenceError] = useState(null);
     const [fenceStatus, setFenceStatus] = useState(null);
     const [lastUpdateAge, setLastUpdateAge] = useState(null);
-    const [showHumans, setShowHumans] = useState(true);
     const [trail, setTrail] = useState([]);
 
     const minimapCanvasRef = useRef(null);
@@ -108,8 +107,8 @@ function MapPage() {
 
     // Draw map
     useEffect(() => {
-        drawMap(minimapCanvasRef.current, fenceData, latest, trail, showHumans);
-    }, [latest, fenceData, trail, showHumans]);
+        drawMap(minimapCanvasRef.current, fenceData, latest, trail);
+    }, [latest, fenceData, trail]);
 
     const handleLogout = () => {
         clearAuth();
@@ -132,7 +131,6 @@ function MapPage() {
         statusColor = '#facc15';
     }
 
-    const humanCount = latest.humans?.length || 0;
 
     return (
         <div className="map-screen">
@@ -192,8 +190,10 @@ function MapPage() {
                         <div className="map-data-value">{latest.selected_id ?? '--'}</div>
                     </div>
                     <div className="map-data-card">
-                        <div className="map-data-label">Humans (sim)</div>
-                        <div className="map-data-value">{humanCount}</div>
+                        <div className="map-data-label">Update Age</div>
+                        <div className="map-data-value">
+                            {lastUpdateAge !== null ? (lastUpdateAge < 1000 ? `${lastUpdateAge} ms` : `${(lastUpdateAge / 1000).toFixed(1)} s`) : '--'}
+                        </div>
                     </div>
                 </section>
 
@@ -201,14 +201,6 @@ function MapPage() {
                 <div className="map-controls">
                     <span>WebSocket: <strong>{connectionStatus}</strong></span>
                     {fenceError && <span className="map-error">Fence: {fenceError}</span>}
-                    <label className="map-toggle">
-                        <input
-                            type="checkbox"
-                            checked={showHumans}
-                            onChange={(e) => setShowHumans(e.target.checked)}
-                        />
-                        Show Humans
-                    </label>
                 </div>
 
                 {/* Large Map Canvas */}
@@ -223,7 +215,6 @@ function MapPage() {
                     <span><span className="map-legend-dot" style={{ background: '#ef4444' }}></span> Violation</span>
                     <span><span className="map-legend-line"></span> Fence</span>
                     <span><span className="map-legend-line" style={{ background: 'rgba(56,189,248,0.3)' }}></span> Margin</span>
-                    <span><span className="map-legend-dot" style={{ background: '#a855f7' }}></span> Humans (sim)</span>
                     <span><span className="map-legend-line" style={{ background: '#22c55e', opacity: 0.5 }}></span> Trail</span>
                 </div>
             </div>
@@ -232,7 +223,7 @@ function MapPage() {
 }
 
 // Map drawing function
-function drawMap(canvas, fenceData, latest, trail, showHumans) {
+function drawMap(canvas, fenceData, latest, trail) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
@@ -390,30 +381,6 @@ function drawMap(canvas, fenceData, latest, trail, showHumans) {
         ctx.font = '10px system-ui';
         ctx.textAlign = 'left';
         ctx.fillText('(0,0)', originX + 5, originY - 5);
-    }
-
-    // Draw humans (simulation ground truth)
-    if (showHumans && latest.humans && Array.isArray(latest.humans)) {
-        for (const human of latest.humans) {
-            if (human.x === undefined || human.y === undefined) continue;
-            const hx = toCanvasX(human.x);
-            const hy = toCanvasY(human.y);
-
-            // Human dot
-            ctx.beginPath();
-            ctx.arc(hx, hy, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = '#a855f7';
-            ctx.fill();
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.5;
-            ctx.stroke();
-
-            // Label
-            ctx.fillStyle = '#e9d5ff';
-            ctx.font = 'bold 10px system-ui';
-            ctx.textAlign = 'left';
-            ctx.fillText(human.id || '?', hx + 8, hy + 3);
-        }
     }
 
     // Draw trajectory trail
