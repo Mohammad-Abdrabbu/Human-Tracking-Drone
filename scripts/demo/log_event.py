@@ -76,8 +76,23 @@ def main():
         else:
             i += 1
 
-    # Default log path
-    log_path = Path(os.path.expanduser('~/sahtd/data/logs/events.jsonl'))
+    # Compute log path using SAHTD_ROOT or fallback
+    sahtd_root = os.environ.get('SAHTD_ROOT')
+    if not sahtd_root:
+        # Auto-detect by walking up from this script
+        current = Path(__file__).resolve().parent
+        for _ in range(10):
+            if (current / '.git').is_dir() or ((current / 'ros2').is_dir() and (current / 'web').is_dir()):
+                sahtd_root = str(current)
+                break
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        if not sahtd_root:
+            sahtd_root = os.path.expanduser('~/sahtd')
+    
+    log_path = Path(sahtd_root) / 'data' / 'logs' / 'events.jsonl'
 
     try:
         log_event(event_name, source, data, log_path)

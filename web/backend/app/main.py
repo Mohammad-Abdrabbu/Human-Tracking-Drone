@@ -21,14 +21,57 @@ JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-.env")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
 
+
+def _get_sahtd_root() -> Path:
+    """
+    Get SAHTD repository root directory.
+    
+    Resolution order:
+    1. SAHTD_ROOT environment variable
+    2. Auto-detect by walking up from this file
+    """
+    # Check environment variable first
+    env_root = os.getenv("SAHTD_ROOT")
+    if env_root:
+        return Path(env_root).expanduser().resolve()
+    
+    # Auto-detect by walking up from this file
+    current = Path(__file__).resolve().parent
+    for _ in range(10):
+        # Check for repo markers
+        if (current / '.git').is_dir():
+            return current
+        if (current / 'ros2').is_dir() and (current / 'web').is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    
+    # Fallback to ~/sahtd for backward compatibility
+    return Path.home() / 'sahtd'
+
+
+# Compute repo root once at module load
+_SAHTD_ROOT = _get_sahtd_root()
+
 # Events log file path (JSONL format)
-EVENTS_LOG_PATH = Path(os.getenv("EVENTS_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/events.jsonl")))
+EVENTS_LOG_PATH = Path(os.getenv(
+    "EVENTS_LOG_PATH",
+    str(_SAHTD_ROOT / "data" / "logs" / "events.jsonl")
+))
 
 # Telemetry log file path (JSONL format) - written by ROS telemetry_bridge_node
-TELEMETRY_LOG_PATH = Path(os.getenv("TELEMETRY_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/telemetry.jsonl")))
+TELEMETRY_LOG_PATH = Path(os.getenv(
+    "TELEMETRY_LOG_PATH",
+    str(_SAHTD_ROOT / "data" / "logs" / "telemetry.jsonl")
+))
 
 # Fence YAML path (geo_guard.yaml from ROS)
-FENCE_YAML_PATH = Path(os.getenv("FENCE_YAML_PATH", os.path.expanduser("~/sahtd/ros2/src/sahtd_launch/config/geo_guard.yaml")))
+FENCE_YAML_PATH = Path(os.getenv(
+    "FENCE_YAML_PATH",
+    str(_SAHTD_ROOT / "ros2" / "src" / "sahtd_launch" / "config" / "geo_guard.yaml")
+))
 
 # Hardcoded user store for now (we can move to DB later)
 USERS_DB = {
@@ -65,23 +108,32 @@ app = FastAPI(
 # ---------------------------------------------------------------------------
 # CORS Configuration
 # ---------------------------------------------------------------------------
-# By default, allow localhost origins for local development.
-# For LAN demo (e.g., phone on same network), add your LAN IP to this list:
-#
-#   origins = [
-#       "http://localhost:5173",
-#       "http://127.0.0.1:5173",
-#       "http://192.168.1.100:5173",  # <-- Add your LAN IP here
-#   ]
-#
-# WARNING: Do NOT use allow_origins=["*"] with allow_credentials=True.
-#          This is a security risk and browsers will reject the request.
+# Automatically detect LAN IP for CORS origins.
+# This allows the frontend to connect from any device on the same network.
+# Override with CORS_LAN_IP environment variable if needed.
 # ---------------------------------------------------------------------------
+
+def _get_lan_ip() -> str:
+    """Get the device's LAN IP address."""
+    import socket
+    try:
+        # Create a socket to determine the outgoing IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.1)
+        # Connect to a public IP (doesn't actually send data)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+_LAN_IP = os.getenv("CORS_LAN_IP", _get_lan_ip())
+
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    # Add your LAN IP here for phone demo, e.g.:
-    "http://192.168.1.3:5173",
+    f"http://{_LAN_IP}:5173",  # Auto-detected LAN IP
 ]
 
 app.add_middleware(

@@ -50,8 +50,25 @@ class TelemetryBridgeNode(Node):
 
         # Parameters
         self.declare_parameter('write_hz', 2.0)
-        self.declare_parameter('telemetry_log_path', 
-                               os.path.expanduser('~/sahtd/data/logs/telemetry.jsonl'))
+        
+        # Compute default telemetry path using SAHTD_ROOT or auto-detection
+        _sahtd_root = os.environ.get('SAHTD_ROOT')
+        if not _sahtd_root:
+            # Auto-detect by walking up from this file
+            current = Path(__file__).resolve().parent
+            for _ in range(10):
+                if (current / '.git').is_dir() or ((current / 'ros2').is_dir() and (current / 'web').is_dir()):
+                    _sahtd_root = str(current)
+                    break
+                parent = current.parent
+                if parent == current:
+                    break
+                current = parent
+            if not _sahtd_root:
+                _sahtd_root = os.path.expanduser('~/sahtd')
+        
+        default_telemetry_path = os.path.join(_sahtd_root, 'data/logs/telemetry.jsonl')
+        self.declare_parameter('telemetry_log_path', default_telemetry_path)
         
         # Human detection parameters
         self.declare_parameter('gz_topic', '/world/default/pose/info')

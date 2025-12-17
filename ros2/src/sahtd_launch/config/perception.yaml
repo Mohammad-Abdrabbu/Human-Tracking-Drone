@@ -2,8 +2,8 @@
 
 yolo_node:
   ros__parameters:
-    # Path to your YOLOv8n weights
-    model_path: "/home/ramadan/sahtd/simulation/weights/yolov8n.pt"
+    # Path to YOLOv8n weights (leave empty to use auto-detected default)
+    model_path: ""
 
     # Detection thresholds
     conf_thres: 0.30      # raised from 0.25 to reduce false positives

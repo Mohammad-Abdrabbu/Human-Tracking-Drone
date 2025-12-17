@@ -69,6 +69,9 @@ class YoloDetNode(Node):
         
         # --- Get parameter values ---
         self.model_path = self.get_parameter('model_path').value
+        # Use auto-detected default if param is empty
+        if not self.model_path:
+            self.model_path = default_model_path
         self.conf = float(self.get_parameter('conf').value)
         self.imgsz = int(self.get_parameter('imgsz').value)
         self.pub_dbg = bool(self.get_parameter('publish_debug_image').value)

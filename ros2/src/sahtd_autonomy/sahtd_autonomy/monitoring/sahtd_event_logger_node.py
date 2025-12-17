@@ -33,8 +33,26 @@ class EventLoggerNode(Node):
     def __init__(self):
         super().__init__('event_logger_node')
 
+        # Compute default log path using SAHTD_ROOT or auto-detection
+        _sahtd_root = os.environ.get('SAHTD_ROOT')
+        if not _sahtd_root:
+            # Auto-detect by walking up from this file
+            current = Path(__file__).resolve().parent
+            for _ in range(10):
+                if (current / '.git').is_dir() or ((current / 'ros2').is_dir() and (current / 'web').is_dir()):
+                    _sahtd_root = str(current)
+                    break
+                parent = current.parent
+                if parent == current:
+                    break
+                current = parent
+            if not _sahtd_root:
+                _sahtd_root = os.path.expanduser('~') + '/sahtd'
+        
+        default_log_path = os.path.join(_sahtd_root, 'data/logs/events.jsonl')
+
         # --- Parameters ---
-        self.declare_parameter('log_file', '~/sahtd/data/logs/events.jsonl')
+        self.declare_parameter('log_file', default_log_path)
         self.declare_parameter('flush_rate_hz', 10.0)
         self.declare_parameter('max_queue_size', 1000)
 

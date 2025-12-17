@@ -62,7 +62,10 @@ fi
 # Check ROS environment
 if ! command -v ros2 &> /dev/null; then
     echo -e "${FAIL} ROS 2 environment NOT sourced"
-    echo -e "${INFO} Run: source /opt/ros/humble/setup.bash && source ~/sahtd/ros2/install/setup.bash"
+    # Compute repo root from script location
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    SAHTD_ROOT="${SAHTD_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+    echo -e "${INFO} Run: source /opt/ros/humble/setup.bash && source ${SAHTD_ROOT}/ros2/install/setup.bash"
     exit 1
 fi
 
