@@ -56,41 +56,58 @@ function LoginPage() {
   };
 
   return (
-    <div className="sahtd-screen">
-      <div className="sahtd-card">
-        <h1 className="sahtd-title">SAHTD Operator Login</h1>
+    <div className="login-screen">
+      <div className="login-card">
+        <header className="login-header">
+          <div className="login-logo">◆</div>
+          <h1 className="login-title">SAHTD</h1>
+          <p className="login-subtitle">Operator Dashboard Login</p>
+        </header>
 
-        <form onSubmit={handleSubmit} className="sahtd-form">
-          <label className="sahtd-label">
-            Email
+        <form onSubmit={handleSubmit} className="login-form">
+          <div className="login-field">
+            <label className="login-label" htmlFor="email">
+              Email Address
+            </label>
             <input
-              className="sahtd-input"
+              id="email"
+              className="login-input"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="username"
+              placeholder="Enter your email"
             />
-          </label>
+          </div>
 
-          <label className="sahtd-label">
-            Password
+          <div className="login-field">
+            <label className="login-label" htmlFor="password">
+              Password
+            </label>
             <input
-              className="sahtd-input"
+              id="password"
+              className="login-input"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
+              placeholder="Enter your password"
             />
-          </label>
+          </div>
 
           {error && (
-            <p className="sahtd-error">
-              {error}
-            </p>
+            <div className="login-error">
+              <span className="login-error-icon">⚠</span>
+              <span>{error}</span>
+            </div>
           )}
 
-          <button type="submit" className="sahtd-button" disabled={loading}>
-            {loading ? 'Logging in…' : 'Log in'}
+          <button
+            type="submit"
+            className="btn btn--primary btn--lg btn--full login-submit"
+            disabled={loading}
+          >
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
       </div>

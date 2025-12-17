@@ -1,7 +1,8 @@
 // src/pages/TelemetryPage.jsx
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
+import Layout from '../ui/Layout';
 
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://127.0.0.1:8000';
 const MAX_BUFFER = 300;
@@ -108,141 +109,160 @@ function TelemetryPage() {
         URL.revokeObjectURL(url);
     }, [buffer]);
 
-    const handleLogout = () => {
-        clearAuth();
-        navigate('/login', { replace: true });
-    };
-
     // Stale badge logic
     const poseAge = latest.stale?.pose_age_s;
     let staleBadge = null;
     if (poseAge !== null && poseAge !== undefined) {
         if (poseAge > 2.0) {
-            staleBadge = <span className="telem-badge telem-badge-error">STALE ({poseAge.toFixed(1)}s)</span>;
+            staleBadge = <span className="badge badge--error">STALE ({poseAge.toFixed(1)}s)</span>;
         } else if (poseAge > 0.5) {
-            staleBadge = <span className="telem-badge telem-badge-warn">STALE ({poseAge.toFixed(1)}s)</span>;
+            staleBadge = <span className="badge badge--warning">STALE ({poseAge.toFixed(1)}s)</span>;
         }
     }
 
-    return (
-        <div className="telem-screen">
-            <div className="telem-container">
-                <header className="telem-header">
-                    <h1 className="telem-title">Telemetry Dashboard</h1>
-                    <div className="telem-header-actions">
-                        <Link to="/app" className="telem-link">Control Panel</Link>
-                        <Link to="/app/map" className="telem-link">Map</Link>
-                        <button className="telem-btn-outlined" onClick={handleLogout}>Logout</button>
-                    </div>
-                </header>
+    // Format age helper
+    const formatAge = (ms) => {
+        if (ms === null) return '--';
+        if (ms < 1000) return `${ms} ms`;
+        return `${(ms / 1000).toFixed(1)} s`;
+    };
 
+    return (
+        <Layout currentPage="telemetry">
+            <div className="telemetry-page">
                 {/* Status bar */}
-                <div className="telem-status-bar">
-                    <span>WS: <strong>{connectionStatus}</strong></span>
-                    <span>Rate: <strong>{telemetryRate ?? '--'} Hz</strong></span>
-                    <span>Age: <strong>{lastUpdateAge !== null ? (lastUpdateAge < 1000 ? `${lastUpdateAge} ms` : `${(lastUpdateAge / 1000).toFixed(1)} s`) : '--'}</strong></span>
-                    <span>Buffer: <strong>{buffer.length}/{MAX_BUFFER}</strong></span>
+                <div className="telemetry-status">
+                    <div className="telemetry-status-item">
+                        <span className="telemetry-status-label">WebSocket:</span>
+                        <span className={`telemetry-status-value text-${connectionStatus === 'connected' ? 'success' : connectionStatus === 'connecting' ? 'warning' : 'error'}`}>
+                            {connectionStatus}
+                        </span>
+                    </div>
+                    <div className="telemetry-status-item">
+                        <span className="telemetry-status-label">Rate:</span>
+                        <span className="telemetry-status-value">{telemetryRate ?? '--'} Hz</span>
+                    </div>
+                    <div className="telemetry-status-item">
+                        <span className="telemetry-status-label">Age:</span>
+                        <span className="telemetry-status-value">{formatAge(lastUpdateAge)}</span>
+                    </div>
+                    <div className="telemetry-status-item">
+                        <span className="telemetry-status-label">Buffer:</span>
+                        <span className="telemetry-status-value">{buffer.length}/{MAX_BUFFER}</span>
+                    </div>
                     {staleBadge}
                 </div>
 
                 {/* Live cards */}
-                <section className="telem-cards">
-                    <div className="telem-card">
-                        <div className="telem-card-label">Follow State</div>
-                        <div className="telem-card-value">{latest.follow_state ?? '--'}</div>
+                <section className="telemetry-cards">
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Follow State</div>
+                        <div className="telemetry-card-value">{latest.follow_state ?? '--'}</div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Guard Status</div>
-                        <div className="telem-card-value">{latest.guard_status ?? '--'}</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Guard Status</div>
+                        <div className="telemetry-card-value">{latest.guard_status ?? '--'}</div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Inside Fence</div>
-                        <div className="telem-card-value">{latest.inside !== null && latest.inside !== undefined ? (latest.inside ? 'YES' : 'NO') : '--'}</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Inside Fence</div>
+                        <div className="telemetry-card-value">
+                            {latest.inside !== null && latest.inside !== undefined ? (latest.inside ? 'YES' : 'NO') : '--'}
+                        </div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Distance to Fence</div>
-                        <div className="telem-card-value">{latest.distance_to_fence_m?.toFixed(2) ?? '--'} m</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Fence Dist</div>
+                        <div className="telemetry-card-value">{latest.distance_to_fence_m?.toFixed(2) ?? '--'} m</div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Position (x, y, z)</div>
-                        <div className="telem-card-value">
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Position</div>
+                        <div className="telemetry-card-value">
                             {latest.pose ? `${latest.pose.x?.toFixed(1)}, ${latest.pose.y?.toFixed(1)}, ${latest.pose.z?.toFixed(1)}` : '--'}
                         </div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Yaw</div>
-                        <div className="telem-card-value">{latest.pose?.yaw_deg?.toFixed(0) ?? '--'}°</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Yaw</div>
+                        <div className="telemetry-card-value">{latest.pose?.yaw_deg?.toFixed(0) ?? '--'}°</div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Target ID</div>
-                        <div className="telem-card-value">{latest.selected_id ?? '--'}</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Target ID</div>
+                        <div className="telemetry-card-value">{latest.selected_id ?? '--'}</div>
                     </div>
-                    <div className="telem-card">
-                        <div className="telem-card-label">Seq</div>
-                        <div className="telem-card-value">{latest.seq ?? '--'}</div>
+                    <div className="telemetry-card">
+                        <div className="telemetry-card-label">Seq</div>
+                        <div className="telemetry-card-value">{latest.seq ?? '--'}</div>
                     </div>
                 </section>
 
                 {/* Charts */}
-                <section className="telem-charts">
-                    <div className="telem-chart-box">
-                        <div className="telem-chart-title">Distance to Fence (60s)</div>
-                        <canvas ref={distanceCanvasRef} className="telem-canvas" width={400} height={120}></canvas>
+                <section className="telemetry-charts">
+                    <div className="telemetry-chart">
+                        <div className="telemetry-chart-header">
+                            <span className="telemetry-chart-title">Distance to Fence (60s)</span>
+                        </div>
+                        <canvas ref={distanceCanvasRef} className="telemetry-chart-canvas" width={600} height={140}></canvas>
                     </div>
-                    <div className="telem-chart-box">
-                        <div className="telem-chart-title">Altitude (60s)</div>
-                        <canvas ref={altitudeCanvasRef} className="telem-canvas" width={400} height={120}></canvas>
+                    <div className="telemetry-chart">
+                        <div className="telemetry-chart-header">
+                            <span className="telemetry-chart-title">Altitude (60s)</span>
+                        </div>
+                        <canvas ref={altitudeCanvasRef} className="telemetry-chart-canvas" width={600} height={140}></canvas>
                     </div>
                 </section>
 
                 {/* Controls */}
-                <div className="telem-controls">
-                    <label className="telem-toggle">
-                        <input type="checkbox" checked={autoscroll} onChange={(e) => setAutoscroll(e.target.checked)} />
-                        Auto-scroll
+                <div className="telemetry-controls">
+                    <label className="telemetry-toggle">
+                        <input
+                            type="checkbox"
+                            checked={autoscroll}
+                            onChange={(e) => setAutoscroll(e.target.checked)}
+                        />
+                        Auto-scroll table
                     </label>
-                    <button className="telem-btn" onClick={handleDownload}>
+                    <button className="btn btn--secondary btn--sm" onClick={handleDownload}>
                         Download Last {buffer.length} (JSON)
                     </button>
                 </div>
 
                 {/* History table */}
-                <section className="telem-table-wrap" ref={tableRef}>
-                    <table className="telem-table">
-                        <thead>
-                            <tr>
-                                <th>Seq</th>
-                                <th>Time</th>
-                                <th>Follow</th>
-                                <th>Guard</th>
-                                <th>X</th>
-                                <th>Y</th>
-                                <th>Z</th>
-                                <th>Yaw</th>
-                                <th>Dist</th>
-                                <th>Target</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {buffer.map((m, i) => (
-                                <tr key={m.seq ?? i}>
-                                    <td>{m.seq ?? '--'}</td>
-                                    <td>{m.ts ? new Date(m.ts).toLocaleTimeString() : '--'}</td>
-                                    <td>{m.follow_state ?? '--'}</td>
-                                    <td>{m.guard_status ?? '--'}</td>
-                                    <td>{m.pose?.x?.toFixed(1) ?? '--'}</td>
-                                    <td>{m.pose?.y?.toFixed(1) ?? '--'}</td>
-                                    <td>{m.pose?.z?.toFixed(1) ?? '--'}</td>
-                                    <td>{m.pose?.yaw_deg?.toFixed(0) ?? '--'}</td>
-                                    <td>{m.distance_to_fence_m?.toFixed(1) ?? '--'}</td>
-                                    <td>{m.selected_id ?? '--'}</td>
+                <section className="telemetry-table-container">
+                    <div className="telemetry-table-scroll" ref={tableRef}>
+                        <table className="telemetry-table">
+                            <thead>
+                                <tr>
+                                    <th>Seq</th>
+                                    <th>Time</th>
+                                    <th>Follow</th>
+                                    <th>Guard</th>
+                                    <th>X</th>
+                                    <th>Y</th>
+                                    <th>Z</th>
+                                    <th>Yaw</th>
+                                    <th>Dist</th>
+                                    <th>Target</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {buffer.map((m, i) => (
+                                    <tr key={m.seq ?? i}>
+                                        <td>{m.seq ?? '--'}</td>
+                                        <td>{m.ts ? new Date(m.ts).toLocaleTimeString() : '--'}</td>
+                                        <td>{m.follow_state ?? '--'}</td>
+                                        <td>{m.guard_status ?? '--'}</td>
+                                        <td>{m.pose?.x?.toFixed(1) ?? '--'}</td>
+                                        <td>{m.pose?.y?.toFixed(1) ?? '--'}</td>
+                                        <td>{m.pose?.z?.toFixed(1) ?? '--'}</td>
+                                        <td>{m.pose?.yaw_deg?.toFixed(0) ?? '--'}</td>
+                                        <td>{m.distance_to_fence_m?.toFixed(1) ?? '--'}</td>
+                                        <td>{m.selected_id ?? '--'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </section>
             </div>
-        </div>
+        </Layout>
     );
 }
 
@@ -252,9 +272,10 @@ function drawChart(canvas, buffer, fieldPath, color) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
-    const padding = 8;
+    const padding = 12;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    // Clear with dark background
+    ctx.fillStyle = '#111827';
     ctx.fillRect(0, 0, w, h);
 
     const now = Date.now();
@@ -276,10 +297,10 @@ function drawChart(canvas, buffer, fieldPath, color) {
     }
 
     if (points.length < 2) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '12px system-ui';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '13px Inter, system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText('No data', w / 2, h / 2);
+        ctx.fillText('Waiting for data...', w / 2, h / 2);
         return;
     }
 
@@ -291,15 +312,19 @@ function drawChart(canvas, buffer, fieldPath, color) {
         maxVal += 1;
     }
 
-    ctx.strokeStyle = '#334155';
+    // Draw grid line
+    ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(padding, h - padding);
     ctx.lineTo(w - padding, h - padding);
     ctx.stroke();
 
+    // Draw chart line
     ctx.strokeStyle = color;
     ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.beginPath();
     let started = false;
     for (const p of points) {
@@ -314,11 +339,22 @@ function drawChart(canvas, buffer, fieldPath, color) {
     }
     ctx.stroke();
 
-    ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px system-ui';
+    // Draw gradient fill under line
+    ctx.lineTo(padding, h - padding);
+    ctx.lineTo(w - padding, h - padding);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, 0, 0, h);
+    gradient.addColorStop(0, `${color}33`);
+    gradient.addColorStop(1, `${color}00`);
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Draw labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '11px JetBrains Mono, monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(maxVal.toFixed(1), padding + 2, padding + 10);
-    ctx.fillText(minVal.toFixed(1), padding + 2, h - padding - 2);
+    ctx.fillText(maxVal.toFixed(1), padding + 4, padding + 12);
+    ctx.fillText(minVal.toFixed(1), padding + 4, h - padding - 4);
 }
 
 export default TelemetryPage;

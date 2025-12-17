@@ -301,6 +301,17 @@ cmd_up() {
         fi
     fi
     
+    # Step 4c: Start telemetry bridge
+    echo ""
+    echo -e "${YELLOW}Starting telemetry bridge...${NC}"
+    if ros2 node list 2>/dev/null | grep -q "telemetry_bridge_node"; then
+        echo -e "${GREEN}  ✓ Telemetry bridge already running${NC}"
+    else
+        ros2 run sahtd_web_bridge telemetry_bridge_node &>/dev/null &
+        sleep 1
+        echo -e "${GREEN}  ✓ Telemetry bridge started${NC}"
+    fi
+    
     # Step 5: Spawn walking actor
     if [ "$spawn" = true ]; then
         echo ""
@@ -466,6 +477,12 @@ cmd_reset() {
         echo -e "${YELLOW}Removing fence markers...${NC}"
         bash "$SCRIPT_DIR/remove_fence_markers.sh" 2>/dev/null || true
     fi
+    
+    # Kill background ROS nodes started by this script
+    echo -e "${YELLOW}Stopping background nodes...${NC}"
+    pkill -f "telemetry_bridge_node" 2>/dev/null || true
+    pkill -f "event_logger_node" 2>/dev/null || true
+    echo -e "${GREEN}  ✓ Background nodes stopped${NC}"
     
     # Use existing reset script if available
     if [ -f "$SAHTD_ROOT/scripts/debug/reset_demo.sh" ]; then

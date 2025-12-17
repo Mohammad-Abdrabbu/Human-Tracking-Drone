@@ -1,7 +1,8 @@
 // src/pages/MapPage.jsx
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
+import Layout from '../ui/Layout';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://127.0.0.1:8000';
@@ -110,115 +111,138 @@ function MapPage() {
         drawMap(minimapCanvasRef.current, fenceData, latest, trail);
     }, [latest, fenceData, trail]);
 
-    const handleLogout = () => {
-        clearAuth();
-        navigate('/login', { replace: true });
-    };
-
     // Determine status color
     const guardStatus = latest.guard_status || '--';
-    let statusColor = '#22c55e';
+    let statusColor = 'var(--status-success)';
     if (guardStatus.includes('VIOLATION')) {
-        statusColor = '#ef4444';
+        statusColor = 'var(--status-error)';
     } else if (guardStatus.includes('HOLD')) {
-        statusColor = '#facc15';
+        statusColor = 'var(--status-warning)';
     }
 
     const poseAge = latest.stale?.pose_age_s;
     if (poseAge && poseAge > 2.0) {
-        statusColor = '#ef4444';
+        statusColor = 'var(--status-error)';
     } else if (poseAge && poseAge > 0.5) {
-        statusColor = '#facc15';
+        statusColor = 'var(--status-warning)';
     }
 
+    // Format age helper
+    const formatAge = (ms) => {
+        if (ms === null) return '--';
+        if (ms < 1000) return `${ms} ms`;
+        return `${(ms / 1000).toFixed(1)} s`;
+    };
 
     return (
-        <div className="map-screen">
-            <div className="map-container">
-                <header className="map-header">
-                    <h1 className="map-title">Live Map</h1>
-                    <div className="map-header-actions">
+        <Layout currentPage="map">
+            <div className="map-page">
+                {/* Data Cards Row 1 */}
+                <section className="map-cards">
+                    <div
+                        className="map-card map-card--status"
+                        style={{ '--card-status-color': statusColor }}
+                    >
+                        <div className="map-card-label">Status</div>
+                        <div className="map-card-value" style={{ color: statusColor }}>{guardStatus}</div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Follow State</div>
+                        <div className="map-card-value">{latest.follow_state ?? '--'}</div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Inside Fence</div>
+                        <div className="map-card-value">
+                            {latest.inside !== null && latest.inside !== undefined ? (latest.inside ? 'YES' : 'NO') : '--'}
+                        </div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Fence Distance</div>
+                        <div className="map-card-value">{latest.distance_to_fence_m?.toFixed(1) ?? '--'} m</div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Position</div>
+                        <div className="map-card-value">
+                            {latest.pose ? `(${latest.pose.x?.toFixed(1)}, ${latest.pose.y?.toFixed(1)})` : '--'}
+                        </div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Altitude</div>
+                        <div className="map-card-value">{latest.pose?.z?.toFixed(1) ?? '--'} m</div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Heading</div>
+                        <div className="map-card-value">{latest.pose?.yaw_deg?.toFixed(0) ?? '--'}°</div>
+                    </div>
+                    <div className="map-card">
+                        <div className="map-card-label">Target ID</div>
+                        <div className="map-card-value">{latest.selected_id ?? '--'}</div>
+                    </div>
+                </section>
+
+                {/* Controls Bar */}
+                <div className="map-controls">
+                    <div className="map-controls-item">
+                        <span className="map-controls-label">WebSocket:</span>
+                        <span className={`map-controls-value text-${connectionStatus === 'connected' ? 'success' : connectionStatus === 'connecting' ? 'warning' : 'error'}`}>
+                            {connectionStatus}
+                        </span>
+                    </div>
+                    <div className="map-controls-item">
+                        <span className="map-controls-label">Update Age:</span>
+                        <span className="map-controls-value font-mono">{formatAge(lastUpdateAge)}</span>
+                    </div>
+                    <div className="map-controls-item">
                         <button
-                            className="map-btn-small"
+                            className="map-reload-btn"
                             onClick={fetchFence}
                             disabled={fenceStatus === 'loading'}
                         >
                             {fenceStatus === 'loading' ? '...' : '↻ Reload Fence'}
                         </button>
-                        {fenceStatus === 'loaded' && <span className="map-fence-ok">✓</span>}
-                        <Link to="/app" className="map-link">Control Panel</Link>
-                        <Link to="/app/telemetry" className="map-link">Telemetry</Link>
-                        <button className="map-btn-outlined" onClick={handleLogout}>Logout</button>
+                        {fenceStatus === 'loaded' && <span className="map-reload-ok">✓</span>}
                     </div>
-                </header>
-
-                {/* Essential Data Cards */}
-                <section className="map-data-row">
-                    <div className="map-data-card" style={{ borderColor: statusColor }}>
-                        <div className="map-data-label">Status</div>
-                        <div className="map-data-value" style={{ color: statusColor }}>{guardStatus}</div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Follow State</div>
-                        <div className="map-data-value">{latest.follow_state ?? '--'}</div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Inside Fence</div>
-                        <div className="map-data-value">
-                            {latest.inside !== null && latest.inside !== undefined ? (latest.inside ? 'YES' : 'NO') : '--'}
+                    {fenceError && (
+                        <div className="map-controls-item">
+                            <span className="map-error">Fence: {fenceError}</span>
                         </div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Distance to Fence</div>
-                        <div className="map-data-value">{latest.distance_to_fence_m?.toFixed(1) ?? '--'} m</div>
-                    </div>
-                </section>
-
-                <section className="map-data-row">
-                    <div className="map-data-card">
-                        <div className="map-data-label">Position</div>
-                        <div className="map-data-value">
-                            {latest.pose ? `(${latest.pose.x?.toFixed(1)}, ${latest.pose.y?.toFixed(1)}, ${latest.pose.z?.toFixed(1)})` : '--'}
-                        </div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Heading</div>
-                        <div className="map-data-value">{latest.pose?.yaw_deg?.toFixed(0) ?? '--'}°</div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Target ID</div>
-                        <div className="map-data-value">{latest.selected_id ?? '--'}</div>
-                    </div>
-                    <div className="map-data-card">
-                        <div className="map-data-label">Update Age</div>
-                        <div className="map-data-value">
-                            {lastUpdateAge !== null ? (lastUpdateAge < 1000 ? `${lastUpdateAge} ms` : `${(lastUpdateAge / 1000).toFixed(1)} s`) : '--'}
-                        </div>
-                    </div>
-                </section>
-
-                {/* Controls */}
-                <div className="map-controls">
-                    <span>WebSocket: <strong>{connectionStatus}</strong></span>
-                    {fenceError && <span className="map-error">Fence: {fenceError}</span>}
+                    )}
                 </div>
 
-                {/* Large Map Canvas */}
-                <section className="map-canvas-section">
-                    <canvas ref={minimapCanvasRef} className="map-canvas" width={800} height={500}></canvas>
+                {/* Map Canvas */}
+                <section className="map-canvas-container">
+                    <canvas ref={minimapCanvasRef} className="map-canvas" width={1000} height={600}></canvas>
                 </section>
 
                 {/* Legend */}
                 <div className="map-legend">
-                    <span><span className="map-legend-dot" style={{ background: '#22c55e' }}></span> Drone Normal</span>
-                    <span><span className="map-legend-dot" style={{ background: '#facc15' }}></span> Hold / Stale</span>
-                    <span><span className="map-legend-dot" style={{ background: '#ef4444' }}></span> Violation</span>
-                    <span><span className="map-legend-line"></span> Fence</span>
-                    <span><span className="map-legend-line" style={{ background: 'rgba(56,189,248,0.3)' }}></span> Margin</span>
-                    <span><span className="map-legend-line" style={{ background: '#22c55e', opacity: 0.5 }}></span> Trail</span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-dot" style={{ background: '#22c55e' }}></span>
+                        Drone Normal
+                    </span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-dot" style={{ background: '#f59e0b' }}></span>
+                        Hold / Stale
+                    </span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-dot" style={{ background: '#ef4444' }}></span>
+                        Violation
+                    </span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: '#38bdf8' }}></span>
+                        Fence
+                    </span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: 'rgba(56, 189, 248, 0.3)' }}></span>
+                        Margin
+                    </span>
+                    <span className="map-legend-item">
+                        <span className="map-legend-line" style={{ background: '#22c55e', opacity: 0.5 }}></span>
+                        Trail
+                    </span>
                 </div>
             </div>
-        </div>
+        </Layout>
     );
 }
 
@@ -228,9 +252,9 @@ function drawMap(canvas, fenceData, latest, trail) {
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
     const h = canvas.height;
-    const padding = 50;
+    const padding = 60;
 
-    // Clear canvas
+    // Clear canvas with dark background
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, w, h);
 
@@ -242,13 +266,13 @@ function drawMap(canvas, fenceData, latest, trail) {
     if (guardStatus.includes('VIOLATION')) {
         droneColor = '#ef4444';
     } else if (guardStatus.includes('HOLD') || (poseAge && poseAge > 0.5)) {
-        droneColor = '#facc15';
+        droneColor = '#f59e0b';
     }
 
     // Check for fence data
     if (!fenceData || !fenceData.vertices || fenceData.vertices.length < 3) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '16px system-ui';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '16px Inter, system-ui';
         ctx.textAlign = 'center';
         ctx.fillText('No fence data available', w / 2, h / 2);
         return;
@@ -291,7 +315,7 @@ function drawMap(canvas, fenceData, latest, trail) {
     ctx.lineWidth = 1;
     const gridStep = Math.pow(10, Math.floor(Math.log10(Math.max(rangeX, rangeY) / 4)));
 
-    ctx.font = '10px system-ui';
+    ctx.font = '11px JetBrains Mono, monospace';
     ctx.fillStyle = '#475569';
     ctx.textAlign = 'center';
 
@@ -301,7 +325,7 @@ function drawMap(canvas, fenceData, latest, trail) {
         ctx.moveTo(cx, padding);
         ctx.lineTo(cx, h - padding);
         ctx.stroke();
-        ctx.fillText(gx.toFixed(0), cx, h - padding + 15);
+        ctx.fillText(gx.toFixed(0), cx, h - padding + 18);
     }
 
     ctx.textAlign = 'right';
@@ -311,13 +335,13 @@ function drawMap(canvas, fenceData, latest, trail) {
         ctx.moveTo(padding, cy);
         ctx.lineTo(w - padding, cy);
         ctx.stroke();
-        ctx.fillText(gy.toFixed(0), padding - 8, cy + 4);
+        ctx.fillText(gy.toFixed(0), padding - 10, cy + 4);
     }
 
     // Draw margin band (thicker semi-transparent stroke around fence)
     if (marginM > 0) {
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
-        ctx.lineWidth = marginM * scale * 2; // Visual representation
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.lineWidth = marginM * scale * 2;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
         ctx.beginPath();
@@ -341,24 +365,24 @@ function drawMap(canvas, fenceData, latest, trail) {
     ctx.stroke();
 
     // Fill fence
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.06)';
     ctx.fill();
 
     // Draw fence vertices
     ctx.fillStyle = '#38bdf8';
     for (const v of vertices) {
         ctx.beginPath();
-        ctx.arc(toCanvasX(v.x), toCanvasY(v.y), 4, 0, 2 * Math.PI);
+        ctx.arc(toCanvasX(v.x), toCanvasY(v.y), 5, 0, 2 * Math.PI);
         ctx.fill();
     }
 
     // Draw axis labels
     ctx.fillStyle = '#64748b';
-    ctx.font = '12px system-ui';
+    ctx.font = '12px Inter, system-ui';
     ctx.textAlign = 'center';
-    ctx.fillText('X (East) →', w / 2, h - 10);
+    ctx.fillText('X (East) →', w / 2, h - 12);
     ctx.save();
-    ctx.translate(15, h / 2);
+    ctx.translate(18, h / 2);
     ctx.rotate(-Math.PI / 2);
     ctx.fillText('Y (North) →', 0, 0);
     ctx.restore();
@@ -371,16 +395,16 @@ function drawMap(canvas, fenceData, latest, trail) {
         ctx.lineWidth = 1;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
-        ctx.moveTo(originX - 10, originY);
-        ctx.lineTo(originX + 10, originY);
-        ctx.moveTo(originX, originY - 10);
-        ctx.lineTo(originX, originY + 10);
+        ctx.moveTo(originX - 12, originY);
+        ctx.lineTo(originX + 12, originY);
+        ctx.moveTo(originX, originY - 12);
+        ctx.lineTo(originX, originY + 12);
         ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = '#475569';
-        ctx.font = '10px system-ui';
+        ctx.font = '10px JetBrains Mono, monospace';
         ctx.textAlign = 'left';
-        ctx.fillText('(0,0)', originX + 5, originY - 5);
+        ctx.fillText('(0,0)', originX + 6, originY - 6);
     }
 
     // Draw trajectory trail
@@ -406,10 +430,10 @@ function drawMap(canvas, fenceData, latest, trail) {
 
     // Check for pose data
     if (!latest.pose || latest.pose.x === undefined || latest.pose.y === undefined) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '14px system-ui';
+        ctx.fillStyle = '#64748b';
+        ctx.font = '14px Inter, system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText('Waiting for drone position...', w / 2, h / 2 + 30);
+        ctx.fillText('Waiting for drone position...', w / 2, h / 2 + 40);
         return;
     }
 
@@ -417,24 +441,27 @@ function drawMap(canvas, fenceData, latest, trail) {
     const droneY = toCanvasY(latest.pose.y);
 
     // Draw drone glow
+    const gradient = ctx.createRadialGradient(droneX, droneY, 0, droneX, droneY, 30);
+    gradient.addColorStop(0, `${droneColor}66`);
+    gradient.addColorStop(1, `${droneColor}00`);
     ctx.beginPath();
-    ctx.arc(droneX, droneY, 18, 0, 2 * Math.PI);
-    ctx.fillStyle = `${droneColor}33`;
+    ctx.arc(droneX, droneY, 30, 0, 2 * Math.PI);
+    ctx.fillStyle = gradient;
     ctx.fill();
 
     // Draw drone dot
     ctx.beginPath();
-    ctx.arc(droneX, droneY, 12, 0, 2 * Math.PI);
+    ctx.arc(droneX, droneY, 14, 0, 2 * Math.PI);
     ctx.fillStyle = droneColor;
     ctx.fill();
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // Draw heading arrow
     if (latest.pose.yaw_deg !== undefined) {
         const yawRad = (latest.pose.yaw_deg * Math.PI) / 180;
-        const arrowLen = 35;
+        const arrowLen = 40;
         const arrowX = droneX + arrowLen * Math.cos(yawRad);
         const arrowY = droneY - arrowLen * Math.sin(yawRad);
 
@@ -442,11 +469,11 @@ function drawMap(canvas, fenceData, latest, trail) {
         ctx.moveTo(droneX, droneY);
         ctx.lineTo(arrowX, arrowY);
         ctx.strokeStyle = droneColor;
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 5;
         ctx.stroke();
 
         // Arrowhead
-        const headLen = 10;
+        const headLen = 12;
         const angle = Math.atan2(droneY - arrowY, arrowX - droneX);
         ctx.beginPath();
         ctx.moveTo(arrowX, arrowY);
@@ -458,14 +485,14 @@ function drawMap(canvas, fenceData, latest, trail) {
     }
 
     // Draw position label
-    ctx.fillStyle = '#f9fafb';
-    ctx.font = 'bold 12px system-ui';
+    ctx.fillStyle = '#f1f5f9';
+    ctx.font = 'bold 13px Inter, system-ui';
     ctx.textAlign = 'left';
-    ctx.fillText(`Drone: (${latest.pose.x.toFixed(1)}, ${latest.pose.y.toFixed(1)})`, droneX + 18, droneY + 5);
+    ctx.fillText(`Drone: (${latest.pose.x.toFixed(1)}, ${latest.pose.y.toFixed(1)})`, droneX + 22, droneY + 5);
     if (latest.pose.z !== undefined) {
-        ctx.font = '11px system-ui';
+        ctx.font = '12px Inter, system-ui';
         ctx.fillStyle = '#94a3b8';
-        ctx.fillText(`Alt: ${latest.pose.z.toFixed(1)}m`, droneX + 18, droneY + 20);
+        ctx.fillText(`Alt: ${latest.pose.z.toFixed(1)}m`, droneX + 22, droneY + 22);
     }
 }
 
