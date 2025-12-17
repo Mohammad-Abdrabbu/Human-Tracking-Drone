@@ -1,10 +1,12 @@
 // src/pages/MapPage.jsx
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
 const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://127.0.0.1:8000';
+const MAX_TRAIL_POINTS = 300;
+const TRAIL_DURATION_S = 30;
 
 function MapPage() {
     const navigate = useNavigate();
@@ -12,32 +14,43 @@ function MapPage() {
     const [connectionStatus, setConnectionStatus] = useState('disconnected');
     const [fenceData, setFenceData] = useState(null);
     const [fenceError, setFenceError] = useState(null);
+    const [fenceStatus, setFenceStatus] = useState(null);
     const [lastUpdateAge, setLastUpdateAge] = useState(null);
+    const [showHumans, setShowHumans] = useState(true);
+    const [trail, setTrail] = useState([]);
 
     const minimapCanvasRef = useRef(null);
     const ageIntervalRef = useRef(null);
 
-    // Fetch fence data on mount
-    useEffect(() => {
-        const fetchFence = async () => {
-            try {
-                const token = getToken();
-                const response = await fetch(`${API_BASE_URL}/guard/fence`, {
-                    headers: { Authorization: `Bearer ${token}` },
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    setFenceData(data);
-                } else {
-                    const err = await response.json().catch(() => ({}));
-                    setFenceError(err.detail || `HTTP ${response.status}`);
-                }
-            } catch (err) {
-                setFenceError('Network error fetching fence');
+    // Fetch fence data
+    const fetchFence = useCallback(async () => {
+        setFenceStatus('loading');
+        setFenceError(null);
+        try {
+            const token = getToken();
+            const response = await fetch(`${API_BASE_URL}/guard/fence`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setFenceData(data);
+                setFenceStatus('loaded');
+                setTimeout(() => setFenceStatus(null), 2000);
+            } else {
+                const err = await response.json().catch(() => ({}));
+                setFenceError(err.detail || `HTTP ${response.status}`);
+                setFenceStatus('error');
             }
-        };
-        fetchFence();
+        } catch (err) {
+            setFenceError('Network error');
+            setFenceStatus('error');
+        }
     }, []);
+
+    // Fetch fence on mount
+    useEffect(() => {
+        fetchFence();
+    }, [fetchFence]);
 
     // WebSocket connection
     useEffect(() => {
@@ -59,6 +72,17 @@ function MapPage() {
                 const data = JSON.parse(event.data);
                 if (data.ts) {
                     setLatest(data);
+                    // Update trail
+                    if (data.pose && data.pose.x !== undefined && data.pose.y !== undefined) {
+                        const now = Date.now();
+                        setTrail((prev) => {
+                            const newPoint = { x: data.pose.x, y: data.pose.y, ts: now };
+                            // Filter old points and cap
+                            const cutoff = now - TRAIL_DURATION_S * 1000;
+                            const filtered = prev.filter((p) => p.ts > cutoff);
+                            return [newPoint, ...filtered].slice(0, MAX_TRAIL_POINTS);
+                        });
+                    }
                 }
             } catch (err) {
                 console.error('Error parsing telemetry:', err);
@@ -82,10 +106,10 @@ function MapPage() {
         return () => clearInterval(ageIntervalRef.current);
     }, [latest]);
 
-    // Draw mini-map
+    // Draw map
     useEffect(() => {
-        drawMap(minimapCanvasRef.current, fenceData, latest);
-    }, [latest, fenceData]);
+        drawMap(minimapCanvasRef.current, fenceData, latest, trail, showHumans);
+    }, [latest, fenceData, trail, showHumans]);
 
     const handleLogout = () => {
         clearAuth();
@@ -94,7 +118,7 @@ function MapPage() {
 
     // Determine status color
     const guardStatus = latest.guard_status || '--';
-    let statusColor = '#22c55e'; // Green
+    let statusColor = '#22c55e';
     if (guardStatus.includes('VIOLATION')) {
         statusColor = '#ef4444';
     } else if (guardStatus.includes('HOLD')) {
@@ -108,12 +132,22 @@ function MapPage() {
         statusColor = '#facc15';
     }
 
+    const humanCount = latest.humans?.length || 0;
+
     return (
         <div className="map-screen">
             <div className="map-container">
                 <header className="map-header">
                     <h1 className="map-title">Live Map</h1>
                     <div className="map-header-actions">
+                        <button
+                            className="map-btn-small"
+                            onClick={fetchFence}
+                            disabled={fenceStatus === 'loading'}
+                        >
+                            {fenceStatus === 'loading' ? '...' : '↻ Reload Fence'}
+                        </button>
+                        {fenceStatus === 'loaded' && <span className="map-fence-ok">✓</span>}
                         <Link to="/app" className="map-link">Control Panel</Link>
                         <Link to="/app/telemetry" className="map-link">Telemetry</Link>
                         <button className="map-btn-outlined" onClick={handleLogout}>Logout</button>
@@ -158,17 +192,23 @@ function MapPage() {
                         <div className="map-data-value">{latest.selected_id ?? '--'}</div>
                     </div>
                     <div className="map-data-card">
-                        <div className="map-data-label">Update Age</div>
-                        <div className="map-data-value">
-                            {lastUpdateAge !== null ? (lastUpdateAge < 1000 ? `${lastUpdateAge} ms` : `${(lastUpdateAge / 1000).toFixed(1)} s`) : '--'}
-                        </div>
+                        <div className="map-data-label">Humans (sim)</div>
+                        <div className="map-data-value">{humanCount}</div>
                     </div>
                 </section>
 
-                {/* Connection Status */}
-                <div className="map-status-bar">
+                {/* Controls */}
+                <div className="map-controls">
                     <span>WebSocket: <strong>{connectionStatus}</strong></span>
                     {fenceError && <span className="map-error">Fence: {fenceError}</span>}
+                    <label className="map-toggle">
+                        <input
+                            type="checkbox"
+                            checked={showHumans}
+                            onChange={(e) => setShowHumans(e.target.checked)}
+                        />
+                        Show Humans
+                    </label>
                 </div>
 
                 {/* Large Map Canvas */}
@@ -178,10 +218,13 @@ function MapPage() {
 
                 {/* Legend */}
                 <div className="map-legend">
-                    <span><span className="map-legend-dot" style={{ background: '#22c55e' }}></span> Normal</span>
+                    <span><span className="map-legend-dot" style={{ background: '#22c55e' }}></span> Drone Normal</span>
                     <span><span className="map-legend-dot" style={{ background: '#facc15' }}></span> Hold / Stale</span>
                     <span><span className="map-legend-dot" style={{ background: '#ef4444' }}></span> Violation</span>
-                    <span><span className="map-legend-line"></span> Fence Boundary</span>
+                    <span><span className="map-legend-line"></span> Fence</span>
+                    <span><span className="map-legend-line" style={{ background: 'rgba(56,189,248,0.3)' }}></span> Margin</span>
+                    <span><span className="map-legend-dot" style={{ background: '#a855f7' }}></span> Humans (sim)</span>
+                    <span><span className="map-legend-line" style={{ background: '#22c55e', opacity: 0.5 }}></span> Trail</span>
                 </div>
             </div>
         </div>
@@ -189,7 +232,7 @@ function MapPage() {
 }
 
 // Map drawing function
-function drawMap(canvas, fenceData, latest) {
+function drawMap(canvas, fenceData, latest, trail, showHumans) {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const w = canvas.width;
@@ -200,7 +243,7 @@ function drawMap(canvas, fenceData, latest) {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, w, h);
 
-    // Determine color based on status
+    // Determine drone color based on status
     let droneColor = '#22c55e';
     const guardStatus = latest.guard_status || '';
     const poseAge = latest.stale?.pose_age_s;
@@ -221,6 +264,7 @@ function drawMap(canvas, fenceData, latest) {
     }
 
     const vertices = fenceData.vertices;
+    const marginM = fenceData.margin_m || 0;
 
     // Compute bounds
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -279,6 +323,21 @@ function drawMap(canvas, fenceData, latest) {
         ctx.fillText(gy.toFixed(0), padding - 8, cy + 4);
     }
 
+    // Draw margin band (thicker semi-transparent stroke around fence)
+    if (marginM > 0) {
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.lineWidth = marginM * scale * 2; // Visual representation
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(toCanvasX(vertices[0].x), toCanvasY(vertices[0].y));
+        for (let i = 1; i < vertices.length; i++) {
+            ctx.lineTo(toCanvasX(vertices[i].x), toCanvasY(vertices[i].y));
+        }
+        ctx.closePath();
+        ctx.stroke();
+    }
+
     // Draw fence polygon
     ctx.strokeStyle = '#38bdf8';
     ctx.lineWidth = 3;
@@ -333,6 +392,51 @@ function drawMap(canvas, fenceData, latest) {
         ctx.fillText('(0,0)', originX + 5, originY - 5);
     }
 
+    // Draw humans (simulation ground truth)
+    if (showHumans && latest.humans && Array.isArray(latest.humans)) {
+        for (const human of latest.humans) {
+            if (human.x === undefined || human.y === undefined) continue;
+            const hx = toCanvasX(human.x);
+            const hy = toCanvasY(human.y);
+
+            // Human dot
+            ctx.beginPath();
+            ctx.arc(hx, hy, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = '#a855f7';
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = '#e9d5ff';
+            ctx.font = 'bold 10px system-ui';
+            ctx.textAlign = 'left';
+            ctx.fillText(human.id || '?', hx + 8, hy + 3);
+        }
+    }
+
+    // Draw trajectory trail
+    if (trail.length > 1) {
+        const now = Date.now();
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        for (let i = 0; i < trail.length - 1; i++) {
+            const p1 = trail[i];
+            const p2 = trail[i + 1];
+            const age1 = (now - p1.ts) / 1000;
+            const alpha = Math.max(0.1, 1 - age1 / TRAIL_DURATION_S);
+
+            ctx.beginPath();
+            ctx.moveTo(toCanvasX(p1.x), toCanvasY(p1.y));
+            ctx.lineTo(toCanvasX(p2.x), toCanvasY(p2.y));
+            ctx.strokeStyle = `rgba(34, 197, 94, ${alpha * 0.6})`;
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+    }
+
     // Check for pose data
     if (!latest.pose || latest.pose.x === undefined || latest.pose.y === undefined) {
         ctx.fillStyle = '#94a3b8';
@@ -345,7 +449,7 @@ function drawMap(canvas, fenceData, latest) {
     const droneX = toCanvasX(latest.pose.x);
     const droneY = toCanvasY(latest.pose.y);
 
-    // Draw drone trail (shadow effect)
+    // Draw drone glow
     ctx.beginPath();
     ctx.arc(droneX, droneY, 18, 0, 2 * Math.PI);
     ctx.fillStyle = `${droneColor}33`;
