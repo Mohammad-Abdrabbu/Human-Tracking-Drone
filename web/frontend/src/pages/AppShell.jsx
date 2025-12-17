@@ -1,6 +1,6 @@
 // src/pages/AppShell.jsx
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
@@ -12,6 +12,7 @@ function AppShell() {
   const [cmdStatus, setCmdStatus] = useState(null);
   const [stateMsg, setStateMsg] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [lastTelemetryAge, setLastTelemetryAge] = useState(null);
 
   const [alerts, setAlerts] = useState([]);
   const [alertsStatus, setAlertsStatus] = useState('disconnected');
@@ -37,6 +38,13 @@ function AppShell() {
       try {
         const data = JSON.parse(event.data);
         setStateMsg(data);
+
+        // Compute telemetry age from timestamp
+        if (data.ts) {
+          const msgTime = new Date(data.ts).getTime();
+          const now = Date.now();
+          setLastTelemetryAge(now - msgTime);
+        }
       } catch (err) {
         console.error('Error parsing /ws/state message:', err);
       }
@@ -170,9 +178,14 @@ function AppShell() {
       <div className="sahtd-card sahtd-card-app">
         <header className="sahtd-app-header">
           <h1 className="sahtd-title">SAHTD Control Panel</h1>
-          <button className="sahtd-button-outlined" onClick={handleLogout}>
-            Logout
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <Link to="/app/telemetry" className="sahtd-button-outlined" style={{ textDecoration: 'none' }}>
+              Telemetry
+            </Link>
+            <button className="sahtd-button-outlined" onClick={handleLogout}>
+              Logout
+            </button>
+          </div>
         </header>
 
         <section className="sahtd-state-section">
@@ -189,16 +202,26 @@ function AppShell() {
               <span className="sahtd-meta-label">Alerts WS:</span>{' '}
               <span className="sahtd-meta-value">{alertsStatus}</span>
             </div>
-            {standOff !== null && (
+            {lastTelemetryAge !== null && (
               <div>
-                <span className="sahtd-meta-label">Stand-off:</span>{' '}
-                <span className="sahtd-meta-value">{standOff.toFixed(1)} m</span>
+                <span className="sahtd-meta-label">Last telemetry:</span>{' '}
+                <span className="sahtd-meta-value">
+                  {lastTelemetryAge < 1000 ? `${lastTelemetryAge} ms` : `${(lastTelemetryAge / 1000).toFixed(1)} s`} ago
+                </span>
               </div>
             )}
-            {fenceMode && (
+            {stateMsg?.pose && (
               <div>
-                <span className="sahtd-meta-label">Fence mode:</span>{' '}
-                <span className="sahtd-meta-value">{fenceMode}</span>
+                <span className="sahtd-meta-label">Position:</span>{' '}
+                <span className="sahtd-meta-value">
+                  x={stateMsg.pose.x?.toFixed(1)}, y={stateMsg.pose.y?.toFixed(1)}, z={stateMsg.pose.z?.toFixed(1)}
+                </span>
+              </div>
+            )}
+            {stateMsg?.selected_id !== null && stateMsg?.selected_id !== undefined && (
+              <div>
+                <span className="sahtd-meta-label">Target ID:</span>{' '}
+                <span className="sahtd-meta-value">{stateMsg.selected_id}</span>
               </div>
             )}
           </div>

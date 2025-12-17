@@ -2,6 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage.jsx';
 import AppShell from './pages/AppShell.jsx';
+import TelemetryPage from './pages/TelemetryPage.jsx';
 import { isAuthenticated } from './auth';
 
 function RequireAuth({ children }) {
@@ -20,6 +21,14 @@ function App() {
         element={
           <RequireAuth>
             <AppShell />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/telemetry"
+        element={
+          <RequireAuth>
+            <TelemetryPage />
           </RequireAuth>
         }
       />

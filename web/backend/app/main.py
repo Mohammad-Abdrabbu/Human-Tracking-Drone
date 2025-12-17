@@ -23,6 +23,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60")
 # Events log file path (JSONL format)
 EVENTS_LOG_PATH = Path(os.getenv("EVENTS_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/events.jsonl")))
 
+# Telemetry log file path (JSONL format) - written by ROS telemetry_bridge_node
+TELEMETRY_LOG_PATH = Path(os.getenv("TELEMETRY_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/telemetry.jsonl")))
+
 # Hardcoded user store for now (we can move to DB later)
 USERS_DB = {
     "operator@uop.edu.jo": {
@@ -49,7 +52,7 @@ class CommandRequest(BaseModel):
 
 app = FastAPI(
     title="Security-Aware Human Tracking Drone Backend",
-    version="0.3.0",
+    version="0.4.0",
     description=(
         "Backend API for SAHTD GP2: login, live drone state, alerts, and basic controls."
     ),
@@ -201,10 +204,10 @@ async def login(payload: LoginRequest):
 @app.websocket("/ws/state")
 async def websocket_state(websocket: WebSocket):
     """
-    Live state stream for the UI.
+    Live telemetry stream for the UI.
 
-    For now: mock data every 1 second.
-    Later: plug real ROS / follow / geo-guard status.
+    Streams real telemetry from ~/sahtd/data/logs/telemetry.jsonl (tail -f style).
+    If the file doesn't exist yet, sends periodic "waiting" messages.
     """
     await websocket.accept()
 
@@ -213,25 +216,42 @@ async def websocket_state(websocket: WebSocket):
         # Socket already closed in helper
         return
 
-    email = user_payload.get("sub", "unknown")
-    role = user_payload.get("role", "unknown")
-
     try:
-        counter = 0
         while True:
-            # Mock state (you can tweak these fields anytime)
-            message = {
-                "follow_state": "FOLLOWING",       # or WAIT_LOCK, IDLE, etc.
-                "guard_status": "NORMAL",          # or GEOGUARD_HOLD, GEOGUARD_VIOLATION
-                "stand_off_m": 3.0,               # desired stand-off distance
-                "fence_mode": "DRONE_KEEP_OUT",   # or TARGET_KEEP_IN later
-                "operator": email,
-                "role": role,
-                "seq": counter,
-            }
-            await websocket.send_json(message)
-            counter += 1
-            await asyncio.sleep(1.0)  # 1 Hz for state
+            # Check if telemetry.jsonl exists
+            if not TELEMETRY_LOG_PATH.exists():
+                # File doesn't exist yet, send waiting message
+                msg = {
+                    "type": "INFO",
+                    "message": "Waiting for telemetry log...",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+                await websocket.send_json(msg)
+                await asyncio.sleep(2.0)
+                continue
+
+            # Tail the telemetry.jsonl file
+            with open(TELEMETRY_LOG_PATH, "r") as f:
+                # Move to end of file
+                f.seek(0, 2)
+                
+                while True:
+                    line = f.readline()
+                    if line:
+                        try:
+                            telemetry = json.loads(line.strip())
+                            await websocket.send_json(telemetry)
+                        except json.JSONDecodeError:
+                            # Send raw line if parse fails
+                            await websocket.send_text(line.strip())
+                    else:
+                        # No new data, wait a bit before checking again
+                        await asyncio.sleep(0.3)
+                        
+                        # Check if file still exists (might have been rotated)
+                        if not TELEMETRY_LOG_PATH.exists():
+                            break
+
     except WebSocketDisconnect:
         # Client disconnected – nothing special to do for now
         pass
