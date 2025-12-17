@@ -1,5 +1,7 @@
 # app/main.py
 import os
+import json
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 import jwt  # PyJWT
@@ -17,6 +19,9 @@ load_dotenv()
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-.env")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+
+# Events log file path (JSONL format)
+EVENTS_LOG_PATH = Path(os.getenv("EVENTS_LOG_PATH", os.path.expanduser("~/sahtd/data/logs/events.jsonl")))
 
 # Hardcoded user store for now (we can move to DB later)
 USERS_DB = {
@@ -44,16 +49,32 @@ class CommandRequest(BaseModel):
 
 app = FastAPI(
     title="Security-Aware Human Tracking Drone Backend",
-    version="0.2.0",
+    version="0.3.0",
     description=(
         "Backend API for SAHTD GP2: login, live drone state, alerts, and basic controls."
     ),
 )
 
-# CORS so Vite/React can call the API from localhost:5173
+# ---------------------------------------------------------------------------
+# CORS Configuration
+# ---------------------------------------------------------------------------
+# By default, allow localhost origins for local development.
+# For LAN demo (e.g., phone on same network), add your LAN IP to this list:
+#
+#   origins = [
+#       "http://localhost:5173",
+#       "http://127.0.0.1:5173",
+#       "http://192.168.1.100:5173",  # <-- Add your LAN IP here
+#   ]
+#
+# WARNING: Do NOT use allow_origins=["*"] with allow_credentials=True.
+#          This is a security risk and browsers will reject the request.
+# ---------------------------------------------------------------------------
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    # Add your LAN IP here for phone demo, e.g.:
+    "http://192.168.1.3:5173",
 ]
 
 app.add_middleware(
@@ -133,6 +154,15 @@ async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
         return None
 
 
+def append_event(event: dict) -> None:
+    """
+    Append an event to the events.jsonl log file.
+    Creates the file and parent directories if they don't exist.
+    """
+    EVENTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(EVENTS_LOG_PATH, "a") as f:
+        f.write(json.dumps(event) + "\n")
+
 
 @app.get("/health", tags=["health"])
 async def health_check():
@@ -210,10 +240,10 @@ async def websocket_state(websocket: WebSocket):
 @app.websocket("/ws/alerts")
 async def websocket_alerts(websocket: WebSocket):
     """
-    Alerts stream for the UI.
+    Alerts/events stream for the UI.
 
-    For now: send fake alerts every 5 seconds.
-    Later: publish real geo-guard / failsafe / operator alerts.
+    Streams real events from ~/sahtd/data/logs/events.jsonl (tail -f style).
+    If the file doesn't exist yet, sends periodic "waiting" messages.
     """
     await websocket.accept()
 
@@ -221,28 +251,71 @@ async def websocket_alerts(websocket: WebSocket):
     if user_payload is None:
         return
 
-    email = user_payload.get("sub", "unknown")
+    alert_id = 0
 
     try:
-        alert_id = 1
         while True:
-            alert = {
-                "id": alert_id,
-                "type": "INFO",  # e.g. INFO/WARN/ERROR
-                "message": f"Mock alert #{alert_id} for {email}",
-                "source": "backend-mock",
-                "ts": datetime.now(timezone.utc).isoformat(),
-            }
-            await websocket.send_json(alert)
-            alert_id += 1
-            await asyncio.sleep(5.0)  # one alert every 5 seconds
+            # Check if events.jsonl exists
+            if not EVENTS_LOG_PATH.exists():
+                # File doesn't exist yet, send waiting message
+                alert_id += 1
+                alert = {
+                    "id": alert_id,
+                    "type": "INFO",
+                    "message": "Waiting for events log...",
+                    "source": "backend",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }
+                await websocket.send_json(alert)
+                await asyncio.sleep(3.0)
+                continue
+
+            # Tail the events.jsonl file
+            with open(EVENTS_LOG_PATH, "r") as f:
+                # Move to end of file
+                f.seek(0, 2)
+                
+                while True:
+                    line = f.readline()
+                    if line:
+                        try:
+                            event = json.loads(line.strip())
+                            alert_id += 1
+                            # Ensure event has an id for frontend
+                            event["id"] = alert_id
+                            await websocket.send_json(event)
+                        except json.JSONDecodeError:
+                            # Skip malformed lines
+                            pass
+                    else:
+                        # No new data, wait a bit before checking again
+                        await asyncio.sleep(0.5)
+                        
+                        # Check if file still exists (might have been rotated)
+                        if not EVENTS_LOG_PATH.exists():
+                            break
+
     except WebSocketDisconnect:
         pass
 
+
 def _command_response(cmd: str, user_email: str) -> dict:
     now = datetime.now(timezone.utc).isoformat()
-    # For now we just log; later these will publish to ROS / MAVSDK.
+    
+    # Log command to events.jsonl
+    event = {
+        "ts": now,
+        "type": "CMD",
+        "message": f"Command '{cmd}' executed",
+        "source": "web-ui",
+        "user": user_email,
+        "command": cmd,
+    }
+    append_event(event)
+    
+    # Also log to stdout for debugging
     print(f"[CMD] {cmd} requested by {user_email} at {now}")
+    
     return {
         "status": "ok",
         "command": cmd,
