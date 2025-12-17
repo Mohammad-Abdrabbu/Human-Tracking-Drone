@@ -50,7 +50,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -67,7 +67,8 @@ Options for 'up':
   --guard on|off       Enable or disable geofence (default: on)
   --markers on|off     Spawn fence markers in Gazebo (default: on)
   --events on|off      Enable event logging (default: on)
-  --spawn              Spawn actor after stack is ready
+  --spawn              Spawn walking actor after stack is ready
+  --extras <n>         Spawn <n> extra standing humans (0-3, default: 0)
   --autoselect         Auto-select target after spawn
   --policy best|first  Selection policy for autoselect (default: best)
   --world <name>       Gazebo world name (default: $DEFAULT_WORLD)
@@ -83,7 +84,8 @@ Options for 'select':
 
 Examples:
   demo_committee.sh up --guard on --events on --spawn --autoselect
-  demo_committee.sh up --guard on --markers on --events on --spawn --autoselect --policy best
+  demo_committee.sh up --guard on --spawn --extras 2 --autoselect
+  demo_committee.sh up --guard on --markers on --events on --spawn --extras 3 --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -140,6 +142,59 @@ wait_for_gazebo_ready() {
     done
 }
 
+# === Helper: Spawn standing humans (Casual female model) ===
+spawn_standing_humans() {
+    local world="$1"
+    local count="${2:-2}"
+    
+    # Model path for static standing human
+    local model_path="$SAHTD_ROOT/simulation/models/Casual female/model.sdf"
+    
+    if [ ! -f "$model_path" ]; then
+        echo -e "${RED}  Error: Casual female model not found${NC}"
+        return 1
+    fi
+    
+    # Positions inside fence (x=[1,15], y=[-8,8])
+    local positions=(
+        "6.0 2.0 0.0"      # person_stand_1
+        "10.0 -2.0 0.0"    # person_stand_2
+        "8.0 5.0 0.0"      # person_stand_3
+    )
+    
+    local spawned=0
+    for i in $(seq 1 $count); do
+        if [ $i -gt ${#positions[@]} ]; then
+            echo -e "${YELLOW}  Max 3 standing humans supported${NC}"
+            break
+        fi
+        
+        local idx=$((i - 1))
+        read -r x y z <<< "${positions[$idx]}"
+        local name="person_stand_$i"
+        
+        echo -n "  $name at ($x, $y)... "
+        
+        if gz service -s /world/$world/create \
+            --reqtype gz.msgs.EntityFactory \
+            --reptype gz.msgs.Boolean \
+            --timeout 5000 \
+            --req "sdf_filename: \"$model_path\", name: \"$name\", allow_renaming: true, pose: {position: {x: $x, y: $y, z: $z}}" 2>/dev/null; then
+            echo -e "${GREEN}✓${NC}"
+            ((spawned++))
+        else
+            echo -e "${RED}✗${NC}"
+        fi
+    done
+    
+    # Log event
+    if [ -f "$SCRIPT_DIR/log_event.py" ]; then
+        python3 "$SCRIPT_DIR/log_event.py" STANDING_HUMANS_SPAWNED "{\"count\": $spawned, \"world\": \"$world\"}" --source demo_extras 2>/dev/null || true
+    fi
+    
+    echo -e "${GREEN}  Spawned $spawned standing humans${NC}"
+}
+
 # === Subcommand: up ===
 
 cmd_up() {
@@ -147,6 +202,7 @@ cmd_up() {
     local markers="on"
     local events="on"
     local spawn=false
+    local extras=0
     local autoselect=false
     local world="$DEFAULT_WORLD"
     local timeout=$DEFAULT_TIMEOUT
@@ -159,6 +215,7 @@ cmd_up() {
             --markers) markers="$2"; shift 2 ;;
             --events) events="$2"; shift 2 ;;
             --spawn) spawn=true; shift ;;
+            --extras) extras="$2"; shift 2 ;;
             --autoselect) autoselect=true; shift ;;
             --world) world="$2"; shift 2 ;;
             --timeout) timeout="$2"; shift 2 ;;
@@ -244,7 +301,7 @@ cmd_up() {
         fi
     fi
     
-    # Step 5: Spawn actor
+    # Step 5: Spawn walking actor
     if [ "$spawn" = true ]; then
         echo ""
         cmd_spawn --world "$world"
@@ -253,7 +310,14 @@ cmd_up() {
         sleep 3
     fi
     
-    # Step 5: Auto-select
+    # Step 5b: Spawn extra standing humans
+    if [ "$extras" -gt 0 ]; then
+        echo ""
+        echo -e "${YELLOW}Spawning $extras extra standing humans...${NC}"
+        spawn_standing_humans "$world" "$extras"
+    fi
+    
+    # Step 6: Auto-select
     if [ "$autoselect" = true ]; then
         echo ""
         cmd_select --policy "$policy" --timeout 10

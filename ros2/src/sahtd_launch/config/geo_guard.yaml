@@ -5,8 +5,9 @@ geo_guard_node:
     fence_mode: "DRONE_KEEP_OUT"   # later: "TARGET_KEEP_IN" if you implement S7
 
     # Polygon vertices in ENU (x1, y1, x2, y2, ...)
-    # This matches your square: [-7, -7] → [7, -7] → [7, 7] → [-7, 7]
-    vertices: [-7.0, -7.0,  7.0, -7.0,  7.0, 7.0,  -7.0, 7.0]
+    # Rectangle: x=[-2,15], y=[-8,8] (17m x 16m)
+    # Drone spawn (0,0) is INSIDE, human spawn (3,0) is INSIDE
+    vertices: [-2.0, -8.0, 15.0, -8.0, 15.0, 8.0, -2.0, 8.0]
 
     # Margins and debouncing
     soft_margin_m: 0.80
