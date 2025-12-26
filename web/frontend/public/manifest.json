@@ -1,0 +1,19 @@
+{
+  "name": "SAHTD Control",
+  "short_name": "SAHTD",
+  "description": "Security-Aware Human Tracking Drone Control Panel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "productivity"]
+}

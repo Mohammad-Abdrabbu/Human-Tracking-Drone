@@ -261,6 +261,11 @@ async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
         return None
 
 
+def iso_timestamp_z() -> str:
+    """Return ISO-8601 timestamp with Z suffix and 3 decimal places (milliseconds)."""
+    return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z'
+
+
 def append_event(event: dict) -> None:
     """
     Append an event to the events.jsonl log file.
@@ -353,7 +358,7 @@ async def login(payload: LoginRequest):
     - Logs LOGIN_SUCCESS or LOGIN_FAIL to events.jsonl
     """
     user = USERS_DB.get(payload.email)
-    now = datetime.now(timezone.utc).isoformat()
+    now = iso_timestamp_z()
     
     if not user or not verify_password(payload.password, user["password_hash"]):
         # Log failed login attempt (do NOT log the password)
@@ -409,7 +414,7 @@ async def websocket_state(websocket: WebSocket):
                 msg = {
                     "type": "INFO",
                     "message": "Waiting for telemetry log...",
-                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "ts": iso_timestamp_z(),
                 }
                 await websocket.send_json(msg)
                 await asyncio.sleep(2.0)
@@ -473,7 +478,7 @@ async def websocket_alerts(websocket: WebSocket):
                     "type": "INFO",
                     "message": "Waiting for events log...",
                     "source": "backend",
-                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "ts": iso_timestamp_z(),
                 }
                 await websocket.send_json(alert)
                 await asyncio.sleep(3.0)
@@ -513,7 +518,7 @@ def _publish_ros_cmd(cmd: str, user_email: str, req_id: str) -> bool:
     Publish a command to /sahtd/cmd ROS topic via subprocess.
     Returns True if successful, False otherwise.
     """
-    now = datetime.now(timezone.utc).isoformat()
+    now = iso_timestamp_z()
     cmd_json = json.dumps({
         "req_id": req_id,
         "cmd": cmd,
@@ -551,7 +556,7 @@ def _publish_ros_cmd(cmd: str, user_email: str, req_id: str) -> bool:
 
 def _command_response(cmd: str, user_email: str) -> dict:
     req_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = iso_timestamp_z()
     
     # Log command request to events.jsonl
     event = {
@@ -626,7 +631,7 @@ async def cmd_select_target(
     """Select a target to follow by ID."""
     target_id = body.target_id
     user_email = user.get("sub", "unknown")
-    now = datetime.now(timezone.utc).isoformat()
+    now = iso_timestamp_z()
     
     # Log event
     event = {

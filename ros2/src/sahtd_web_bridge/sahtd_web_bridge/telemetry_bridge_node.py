@@ -371,7 +371,7 @@ class TelemetryBridgeNode(Node):
         humans = self._poll_gazebo_humans()
         
         snapshot = {
-            'ts': datetime.now(timezone.utc).isoformat(),
+            'ts': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
             'seq': self._seq,
             'follow_state': self._follow_state,
             'guard_status': self._guard_status,
