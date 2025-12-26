@@ -104,6 +104,9 @@ class EventLoggerNode(Node):
         # FR7: Command acknowledgments
         self.create_subscription(
             String, '/sahtd/cmd_ack', self._on_cmd_ack, qos_reliable)
+        # FR6: Target visibility status (lost/reacquired)
+        self.create_subscription(
+            String, '/sahtd/target_status', self._on_target_status, qos_reliable)
 
         # --- Publisher for live event stream ---
         self._events_pub = self.create_publisher(String, '/sahtd/events', 10)
@@ -214,6 +217,30 @@ class EventLoggerNode(Node):
             'cmd': data.get('cmd', 'unknown'),
             'status': data.get('status', 'unknown'),
             'detail': data.get('detail', '')
+        })
+
+    def _on_target_status(self, msg: String):
+        """Handle target lost/reacquired events from follow_node (FR6)."""
+        try:
+            data = json.loads(msg.data)
+        except json.JSONDecodeError:
+            self.get_logger().warn(f'[event_logger] Invalid target_status JSON: {msg.data}')
+            return
+        
+        event_type = data.get('type', 'UNKNOWN')
+        selected_id = data.get('selected_id', -1)
+        
+        # Map to human-readable message
+        if event_type == 'TARGET_LOST':
+            message = f'Target {selected_id} lost - no detection for timeout period'
+        elif event_type == 'TARGET_REACQUIRED':
+            message = f'Target {selected_id} re-acquired after loss'
+        else:
+            message = f'Target status: {event_type}'
+        
+        self._queue_event(event_type, 'follow', {
+            'selected_id': selected_id,
+            'message': message
         })
 
     def destroy_node(self):

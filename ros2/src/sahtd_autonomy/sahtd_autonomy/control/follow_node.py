@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # follow_node.py (detect + rotate + advance; no strafe)
 # Uses ByteTrack tracks for target selection and image-based forward control.
-import asyncio, math, time, threading, re
+import asyncio, math, time, threading, re, json
+from datetime import datetime, timezone
 
 import rclpy
 from rclpy.node import Node
@@ -118,6 +119,11 @@ class FollowNode(Node):
         self.declare_parameter('k_z_up', 0.8)          # m/s per m (up)
         self.declare_parameter('vz_up_max', 0.7)       # m/s (up)
 
+        # --- FR6: Target visibility tracking (lost/reacquired alerts) ---
+        self.declare_parameter('lost_timeout_s', 1.0)            # Seconds without target before TARGET_LOST
+        self.declare_parameter('reacquired_min_hits', 1)         # Consecutive frames needed to confirm re-acquisition
+        self.declare_parameter('emit_reacquire_on_first_hit', True)  # Emit immediately on first hit
+
         
 
         # --- state ---
@@ -148,6 +154,11 @@ class FollowNode(Node):
         self._target_stationary = False   # is target considered stationary?
         self._prox_brake_active = False   # is proximity brake currently active?
         self._zone = "FAR"                # current zone: FAR, HOV, NEAR
+
+        # FR6: Target visibility state machine (lost/reacquired)
+        self._target_is_lost = False              # Currently in "lost" state
+        self._target_last_seen_mono = 0.0         # Monotonic time of last valid detection
+        self._target_reacq_hits = 0               # Consecutive hits for re-acquisition
 
         # Initialize zone classifier with default params (will be updated from ROS params)
         self._zone_classifier = ZoneClassifier(
@@ -232,6 +243,9 @@ class FollowNode(Node):
         self.hud_pub = self.create_publisher(String, "/sahtd/follow/hud", 10)
         self.seen_pub = self.create_publisher(String, "/sahtd/follow/seen_ids", 10)
 
+        # FR6: Target status publisher (for event logger)
+        self.target_status_pub = self.create_publisher(String, "/sahtd/target_status", 10)
+
         qos_pose = QoSProfile(
             reliability=ReliabilityPolicy.RELIABLE,
             history=HistoryPolicy.KEEP_LAST,
@@ -313,6 +327,10 @@ class FollowNode(Node):
             self._last_h  = None
             self._h_f = 0.0
             self._last_det_ts = 0.0
+            # FR6: Reset target visibility state on new selection
+            self._target_is_lost = False
+            self._target_last_seen_mono = time.monotonic()
+            self._target_reacq_hits = 0
             self.get_logger().info(f"[follow] selected_id={self._selected_id}")
 
     def _on_tracks(self, msg: Detection2DArray):
@@ -377,6 +395,10 @@ class FollowNode(Node):
             self._prev_yaw_deg = 0.0
             self._last_det_ts = 0.0
             self._fsm = S.SEARCH
+            # FR6: Reset target visibility state
+            self._target_is_lost = False
+            self._target_last_seen_mono = 0.0
+            self._target_reacq_hits = 0
         self.get_logger().warn('[reset] follow_node state reset to SEARCH; target history cleared')
 
     # --- Cache NED position from telemetry (called by async watcher) ---
@@ -598,6 +620,54 @@ class FollowNode(Node):
                 locked = (self._lock_score >= l_th)
                 lock_score = self._lock_score
                 sel_id = self._selected_id
+
+            # --- FR6: Target visibility state machine (lost/reacquired) ---
+            if sel_id is not None:
+                lost_timeout = float(self.get_parameter('lost_timeout_s').value)
+                reacq_min_hits = int(self.get_parameter('reacquired_min_hits').value)
+                emit_on_first = bool(self.get_parameter('emit_reacquire_on_first_hit').value)
+                now_mono = time.monotonic()
+                target_visible = (cx is not None and age <= stale_s)
+
+                if target_visible:
+                    # Target is visible - update last seen time
+                    self._target_last_seen_mono = now_mono
+                    self._target_reacq_hits += 1
+
+                    # Check for re-acquisition after loss
+                    if self._target_is_lost:
+                        hits_ok = (emit_on_first and self._target_reacq_hits >= 1) or \
+                                  (self._target_reacq_hits >= reacq_min_hits)
+                        if hits_ok:
+                            # Emit TARGET_REACQUIRED event
+                            self._target_is_lost = False
+                            self._target_reacq_hits = 0
+                            event = {
+                                "ts": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                                "type": "TARGET_REACQUIRED",
+                                "selected_id": sel_id,
+                                "source": "follow"
+                            }
+                            self.target_status_pub.publish(String(data=json.dumps(event)))
+                            self.get_logger().info(f"[FR6] TARGET_REACQUIRED: id={sel_id}")
+                else:
+                    # Target not visible - reset reacq hits
+                    self._target_reacq_hits = 0
+
+                    # Check for target lost after timeout
+                    if not self._target_is_lost and self._target_last_seen_mono > 0:
+                        time_since_seen = now_mono - self._target_last_seen_mono
+                        if time_since_seen > lost_timeout:
+                            # Emit TARGET_LOST event
+                            self._target_is_lost = True
+                            event = {
+                                "ts": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%f')[:-3] + 'Z',
+                                "type": "TARGET_LOST",
+                                "selected_id": sel_id,
+                                "source": "follow"
+                            }
+                            self.target_status_pub.publish(String(data=json.dumps(event)))
+                            self.get_logger().warn(f"[FR6] TARGET_LOST: id={sel_id} (no detection for {time_since_seen:.2f}s)")
 
             # altitude guard (NED down is +)
             vz_down = 0.0
