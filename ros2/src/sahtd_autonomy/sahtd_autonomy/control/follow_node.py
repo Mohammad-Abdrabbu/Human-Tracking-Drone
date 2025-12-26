@@ -21,6 +21,7 @@ from .utils.geometry import fov_ex
 from .controllers.yaw_controller import YawController
 from .controllers.range_controller import RangeController
 from .controllers.altitude_controller import AltitudeController
+from .command_executor import CommandExecutor
 
 
 # Note: S enum now imported from .state.fsm as FollowState
@@ -274,6 +275,9 @@ class FollowNode(Node):
             self._on_follow_reset,
             10,
         )
+
+        # Command executor (initialized after MAVSDK drone is connected)
+        self._cmd_executor = None
 
         self.get_logger().info("FollowNode (rotate+advance) ready @20 Hz with altitude guard.")
         threading.Thread(target=self._mav_task, daemon=True).start()
@@ -537,6 +541,10 @@ class FollowNode(Node):
                 await drone.offboard.set_velocity_body(VelocityBodyYawspeed(0.0, 0.0, -0.7, 0.0))
                 await asyncio.sleep(0.05)
 
+        # --- Initialize command executor with drone reference ---
+        self._cmd_executor = CommandExecutor(self, lambda: drone)
+        self.get_logger().info('[follow] CommandExecutor ready')
+
         # --- control loop ---
         rate_hz = float(self.get_parameter('publish_rate_hz').value)
         dt = 1.0 / max(1.0, rate_hz)
@@ -722,6 +730,34 @@ class FollowNode(Node):
                 if self._guard_state == 'GEOGUARD_VIOLATION':
                     # optional: freeze slewing toward zero so we don't "spring" forward on release
                     self._prev_vx = 0.0
+
+            # --- Command executor: pause/resume ---
+            if self._cmd_executor and self._cmd_executor.paused:
+                vx = 0.0
+                yaw_cmd = 0.0
+                self._prev_vx = 0.0  # Reset slew to avoid jump on resume
+
+            # --- Command executor: check for RTL/Land actions ---
+            if self._cmd_executor:
+                pending = self._cmd_executor.pending_action
+                if pending == 'rtl':
+                    self._cmd_executor.clear_pending_action()
+                    self.get_logger().info('[follow] Executing RTL via MAVSDK')
+                    try:
+                        await drone.offboard.stop()
+                        await drone.action.return_to_launch()
+                    except Exception as e:
+                        self.get_logger().error(f'RTL failed: {e}')
+                    return  # Exit control loop
+                elif pending == 'land':
+                    self._cmd_executor.clear_pending_action()
+                    self.get_logger().info('[follow] Executing LAND via MAVSDK')
+                    try:
+                        await drone.offboard.stop()
+                        await drone.action.land()
+                    except Exception as e:
+                        self.get_logger().error(f'Land failed: {e}')
+                    return  # Exit control loop
 
             # --- Vertical (altitude) control using AltitudeController ---
             # Controller returns positive = up, but MAVSDK uses NED (positive = down)

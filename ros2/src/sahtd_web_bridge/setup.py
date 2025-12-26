@@ -23,6 +23,7 @@ setup(
     entry_points={
         'console_scripts': [
             'telemetry_bridge_node = sahtd_web_bridge.telemetry_bridge_node:main',
+            'video_bridge_node = sahtd_web_bridge.video_bridge_node:main',
         ],
     },
 )

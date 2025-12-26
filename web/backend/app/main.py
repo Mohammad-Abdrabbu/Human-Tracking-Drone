@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 import jwt  # PyJWT
 from dotenv import load_dotenv
 import asyncio
+import subprocess
+import uuid
 from typing import Optional
 from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, Header, Depends
 
@@ -436,29 +438,77 @@ async def websocket_alerts(websocket: WebSocket):
         pass
 
 
+def _publish_ros_cmd(cmd: str, user_email: str, req_id: str) -> bool:
+    """
+    Publish a command to /sahtd/cmd ROS topic via subprocess.
+    Returns True if successful, False otherwise.
+    """
+    now = datetime.now(timezone.utc).isoformat()
+    cmd_json = json.dumps({
+        "req_id": req_id,
+        "cmd": cmd,
+        "user": user_email,
+        "ts": now
+    })
+    
+    # Use ros2 topic pub --once to publish single message
+    # The JSON needs to be passed as the data field of std_msgs/String
+    try:
+        result = subprocess.run(
+            [
+                'ros2', 'topic', 'pub', '--once',
+                '/sahtd/cmd', 'std_msgs/msg/String',
+                f'data: \'{cmd_json}\''
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5.0
+        )
+        if result.returncode != 0:
+            print(f"[CMD] ros2 topic pub failed: {result.stderr}")
+            return False
+        return True
+    except subprocess.TimeoutExpired:
+        print("[CMD] ros2 topic pub timed out")
+        return False
+    except FileNotFoundError:
+        print("[CMD] ros2 command not found (ROS2 not sourced?)")
+        return False
+    except Exception as e:
+        print(f"[CMD] ros2 topic pub error: {e}")
+        return False
+
+
 def _command_response(cmd: str, user_email: str) -> dict:
+    req_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
     
-    # Log command to events.jsonl
+    # Log command request to events.jsonl
     event = {
         "ts": now,
-        "type": "CMD",
-        "message": f"Command '{cmd}' executed",
+        "type": "CMD_REQUEST",
+        "message": f"Command '{cmd}' requested",
         "source": "web-ui",
         "user": user_email,
         "command": cmd,
+        "req_id": req_id,
     }
     append_event(event)
     
-    # Also log to stdout for debugging
-    print(f"[CMD] {cmd} requested by {user_email} at {now}")
+    # Publish to ROS topic
+    ros_success = _publish_ros_cmd(cmd, user_email, req_id)
+    
+    # Log to stdout for debugging
+    status = "queued" if ros_success else "ros_failed"
+    print(f"[CMD] {cmd} requested by {user_email} (req_id={req_id[:8]}...) -> {status}")
     
     return {
-        "status": "ok",
+        "status": status,
         "command": cmd,
         "user": user_email,
+        "req_id": req_id,
         "timestamp": now,
-        "message": f"{cmd} command accepted",
+        "message": f"{cmd} command {'queued for execution' if ros_success else 'failed to queue (ROS unavailable)'}",
     }
 
 
@@ -492,6 +542,60 @@ async def cmd_land(
     user: dict = Depends(get_current_user),
 ):
     return _command_response("land", user.get("sub", "unknown"))
+
+
+class TargetSelectRequest(BaseModel):
+    target_id: int
+
+
+@app.post("/cmd/select", tags=["commands"])
+async def cmd_select_target(
+    body: TargetSelectRequest,
+    user: dict = Depends(get_current_user),
+):
+    """Select a target to follow by ID."""
+    target_id = body.target_id
+    user_email = user.get("sub", "unknown")
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Log event
+    event = {
+        "ts": now,
+        "type": "TARGET_SELECT",
+        "message": f"Target {target_id} selected",
+        "source": "web-ui",
+        "user": user_email,
+        "target_id": target_id,
+    }
+    append_event(event)
+    
+    # Publish to ROS topic /perception/target_select (Int32)
+    try:
+        result = subprocess.run(
+            [
+                'ros2', 'topic', 'pub', '--once',
+                '/perception/target_select', 'std_msgs/msg/Int32',
+                f'data: {target_id}'
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5.0
+        )
+        ros_success = result.returncode == 0
+    except Exception as e:
+        print(f"[SELECT] ros2 topic pub error: {e}")
+        ros_success = False
+    
+    status = "selected" if ros_success else "ros_failed"
+    print(f"[SELECT] Target {target_id} by {user_email} -> {status}")
+    
+    return {
+        "status": status,
+        "target_id": target_id,
+        "user": user_email,
+        "timestamp": now,
+        "message": f"Target {target_id} {'selected' if ros_success else 'selection failed (ROS unavailable)'}",
+    }
 
 
 # Optional: allow `python -m app.main` as dev shortcut

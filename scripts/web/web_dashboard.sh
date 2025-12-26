@@ -403,7 +403,9 @@ cmd_reset() {
     # Kill any vite processes in our frontend dir
     pkill -f "vite.*sahtd.*frontend" 2>/dev/null && echo "  Killed orphaned vite" || true
     
-    # Clean up log files (optional - keep them for debugging)
+    # Free ports in case of orphaned processes
+    lsof -ti :5173 | xargs -r kill -9 2>/dev/null && echo "  Freed port 5173" || true
+    lsof -ti :8000 | xargs -r kill -9 2>/dev/null && echo "  Freed port 8000" || true
     # rm -f "$BACKEND_LOG_FILE" "$FRONTEND_LOG_FILE"
     
     echo ""

@@ -3,7 +3,7 @@
 # Single command to bring up, configure, and run the full SAHTD demo
 #
 # Usage:
-#   demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
+#   demo_committee.sh up [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
 #   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
 #   demo_committee.sh select [--policy best|first] [--timeout <sec>]
 #   demo_committee.sh status
@@ -50,7 +50,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--guard on|off] [--events on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -67,6 +67,7 @@ Options for 'up':
   --guard on|off       Enable or disable geofence (default: on)
   --markers on|off     Spawn fence markers in Gazebo (default: on)
   --events on|off      Enable event logging (default: on)
+  --video on|off       Enable video bridge for web dashboard (default: off)
   --spawn              Spawn walking actor after stack is ready
   --extras <n>         Spawn <n> extra standing humans (0-3, default: 0)
   --autoselect         Auto-select target after spawn
@@ -85,7 +86,7 @@ Options for 'select':
 Examples:
   demo_committee.sh up --guard on --events on --spawn --autoselect
   demo_committee.sh up --guard on --spawn --extras 2 --autoselect
-  demo_committee.sh up --guard on --markers on --events on --spawn --extras 3 --autoselect --policy best
+  demo_committee.sh up --guard on --markers on --events on --video on --spawn --extras 3 --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -201,6 +202,7 @@ cmd_up() {
     local guard="on"
     local markers="on"
     local events="on"
+    local video="off"
     local spawn=false
     local extras=0
     local autoselect=false
@@ -214,6 +216,7 @@ cmd_up() {
             --guard) guard="$2"; shift 2 ;;
             --markers) markers="$2"; shift 2 ;;
             --events) events="$2"; shift 2 ;;
+            --video) video="$2"; shift 2 ;;
             --spawn) spawn=true; shift ;;
             --extras) extras="$2"; shift 2 ;;
             --autoselect) autoselect=true; shift ;;
@@ -310,6 +313,19 @@ cmd_up() {
         ros2 run sahtd_web_bridge telemetry_bridge_node &>/dev/null &
         sleep 1
         echo -e "${GREEN}  ✓ Telemetry bridge started${NC}"
+    fi
+    
+    # Step 4d: Start video bridge (optional)
+    if [ "$video" = "on" ]; then
+        echo ""
+        echo -e "${YELLOW}Starting video bridge...${NC}"
+        if ros2 node list 2>/dev/null | grep -q "video_bridge_node"; then
+            echo -e "${GREEN}  ✓ Video bridge already running${NC}"
+        else
+            ros2 run sahtd_web_bridge video_bridge_node &>/dev/null &
+            sleep 1
+            echo -e "${GREEN}  ✓ Video bridge started (http://localhost:8001/video)${NC}"
+        fi
     fi
     
     # Step 5: Spawn walking actor
@@ -482,6 +498,9 @@ cmd_reset() {
     echo -e "${YELLOW}Stopping background nodes...${NC}"
     pkill -f "telemetry_bridge_node" 2>/dev/null || true
     pkill -f "event_logger_node" 2>/dev/null || true
+    pkill -f "video_bridge_node" 2>/dev/null || true
+    # Free video bridge port in case of orphaned process
+    lsof -ti :8001 | xargs -r kill -9 2>/dev/null || true
     echo -e "${GREEN}  ✓ Background nodes stopped${NC}"
     
     # Use existing reset script if available

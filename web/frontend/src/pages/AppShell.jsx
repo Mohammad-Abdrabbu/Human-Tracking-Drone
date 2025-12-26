@@ -17,6 +17,7 @@ function AppShell() {
 
   const [alerts, setAlerts] = useState([]);
   const [alertsStatus, setAlertsStatus] = useState('disconnected');
+  const [selectStatus, setSelectStatus] = useState(null);
 
   // --- WebSocket: /ws/state ---
   useEffect(() => {
@@ -156,6 +157,43 @@ function AppShell() {
     }
   };
 
+  const handleSelectTarget = async (targetId) => {
+    const token = getToken();
+    if (!token) {
+      clearAuth();
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    setSelectStatus({ state: 'sending', message: `Selecting target ${targetId}...` });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/cmd/select`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ target_id: targetId }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.status === 'selected') {
+        setSelectStatus({ state: 'ok', message: `✓ Target ${targetId} selected` });
+      } else {
+        setSelectStatus({ state: 'error', message: data.message || 'Selection failed' });
+      }
+
+      // Clear status after 3 seconds
+      setTimeout(() => setSelectStatus(null), 3000);
+    } catch (err) {
+      console.error('Select error:', err);
+      setSelectStatus({ state: 'error', message: 'Network error' });
+      setTimeout(() => setSelectStatus(null), 3000);
+    }
+  };
+
   // Derive UI from stateMsg
   const followState = stateMsg?.follow_state ?? 'UNKNOWN';
   const guardStatus = stateMsg?.guard_status ?? 'UNKNOWN';
@@ -277,6 +315,103 @@ function AppShell() {
               {cmdStatus.detail && (
                 <> — <span>{cmdStatus.detail}</span></>
               )}
+            </div>
+          )}
+        </section>
+
+        {/* Target Selection Section */}
+        <section className="target-section">
+          <div className="target-header">
+            <h2 className="target-title">Target Selection</h2>
+            <div className="target-current">
+              <span className="target-label">Following:</span>
+              <span className="target-id">{stateMsg?.selected_id ?? '--'}</span>
+            </div>
+          </div>
+
+          {/* Live Video Feed with tracked targets */}
+          <div className="target-video-container">
+            <img
+              src="http://localhost:8001/video"
+              alt="Live camera feed with tracked targets"
+              className="target-video"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
+              onLoad={(e) => {
+                e.target.style.display = 'block';
+                e.target.nextElementSibling.style.display = 'none';
+              }}
+            />
+            <div className="target-video-placeholder">
+              <span className="target-video-icon">📹</span>
+              <span className="target-video-text">Video stream unavailable</span>
+              <span className="target-video-hint">Run: ros2 run sahtd_web_bridge video_bridge_node</span>
+            </div>
+          </div>
+          <div className="target-ids-container">
+            <span className="target-ids-label">Visible Targets:</span>
+            <div className="target-ids-list">
+              {(() => {
+                // Parse seen_ids from format "ids=1,2,3"
+                const seenIdsRaw = stateMsg?.seen_ids || '';
+                const match = seenIdsRaw.match(/ids=(.+)/);
+                const ids = match && match[1]
+                  ? match[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+                  : [];
+
+                if (ids.length === 0) {
+                  return <span className="target-ids-empty">No targets visible</span>;
+                }
+
+                return ids.map(id => (
+                  <button
+                    key={id}
+                    className={`target-id-btn ${stateMsg?.selected_id === id ? 'target-id-btn--selected' : ''}`}
+                    onClick={() => handleSelectTarget(id)}
+                  >
+                    {id}
+                  </button>
+                ));
+              })()}
+            </div>
+          </div>
+
+          <div className="target-manual">
+            <input
+              type="number"
+              className="target-input"
+              placeholder="Enter ID"
+              min="1"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = parseInt(e.target.value, 10);
+                  if (!isNaN(val) && val > 0) {
+                    handleSelectTarget(val);
+                    e.target.value = '';
+                  }
+                }
+              }}
+            />
+            <button
+              className="target-select-btn"
+              onClick={(e) => {
+                const input = e.target.previousElementSibling;
+                const val = parseInt(input.value, 10);
+                if (!isNaN(val) && val > 0) {
+                  handleSelectTarget(val);
+                  input.value = '';
+                }
+              }}
+            >
+              Select
+            </button>
+          </div>
+
+          {selectStatus && (
+            <div className={`target-status target-status--${selectStatus.state}`}>
+              {selectStatus.message}
             </div>
           )}
         </section>

@@ -101,6 +101,9 @@ class EventLoggerNode(Node):
             String, '/gp2/guard/debug', self._on_guard_debug, 10)
         self.create_subscription(
             Int32, '/perception/target_select', self._on_target_select, qos_reliable)
+        # FR7: Command acknowledgments
+        self.create_subscription(
+            String, '/sahtd/cmd_ack', self._on_cmd_ack, qos_reliable)
 
         # --- Publisher for live event stream ---
         self._events_pub = self.create_publisher(String, '/sahtd/events', 10)
@@ -196,6 +199,21 @@ class EventLoggerNode(Node):
         target_id = msg.data
         self._queue_event('TARGET_SELECTED', 'target_select', {
             'target_id': target_id
+        })
+
+    def _on_cmd_ack(self, msg: String):
+        """Handle command acknowledgments from FR7 command executor."""
+        try:
+            data = json.loads(msg.data)
+        except json.JSONDecodeError:
+            self.get_logger().warn(f'[event_logger] Invalid CMD_ACK JSON: {msg.data}')
+            return
+        
+        self._queue_event('CMD_ACK', 'command_executor', {
+            'req_id': data.get('req_id', 'unknown'),
+            'cmd': data.get('cmd', 'unknown'),
+            'status': data.get('status', 'unknown'),
+            'detail': data.get('detail', '')
         })
 
     def destroy_node(self):
