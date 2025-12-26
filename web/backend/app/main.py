@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt  # PyJWT
 from dotenv import load_dotenv
 import asyncio
@@ -75,12 +76,37 @@ FENCE_YAML_PATH = Path(os.getenv(
     str(_SAHTD_ROOT / "ros2" / "src" / "sahtd_launch" / "config" / "geo_guard.yaml")
 ))
 
-# Hardcoded user store for now (we can move to DB later)
+# ---------------------------------------------------------------------------
+# Password Hashing Utilities
+# ---------------------------------------------------------------------------
+
+def hash_password(plain: str) -> str:
+    """Hash a password using bcrypt."""
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(plain: str, hashed: str) -> bool:
+    """Verify a password against its bcrypt hash."""
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
+
+
+# ---------------------------------------------------------------------------
+# In-Memory User Store (bcrypt hashed passwords)
+# ---------------------------------------------------------------------------
+# Pre-computed hashes for demo passwords:
+#   operator: secret123
+#   viewer: viewer123
+# To generate new hashes: python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
+
 USERS_DB = {
     "operator@uop.edu.jo": {
-        "password": "secret123",  # plain text for now
+        "password_hash": "$2b$12$yb/kNy/owvNXFcJQlsE.CeyY162xMBrRzSEgscfdTBsNKfRtomt8.",  # secret123
         "role": "operator",
-    }
+    },
+    "viewer@uop.edu.jo": {
+        "password_hash": "$2b$12$xZlwf2.2qaaCxgvZzJV4bO5eFhlUF0EGFqxmfA6DcN217KzDmG1Bu",  # viewer123
+        "role": "viewer",
+    },
 }
 
 
@@ -186,6 +212,26 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
+
+
+def require_role(required_role: str):
+    """
+    Factory for role-checking dependency.
+    Returns 403 Forbidden if user's role doesn't match required_role.
+    
+    Usage:
+        @app.post("/cmd/pause")
+        async def cmd_pause(user: dict = Depends(require_role("operator"))):
+            ...
+    """
+    async def role_checker(user: dict = Depends(get_current_user)):
+        if user.get("role") != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{required_role}' required",
+            )
+        return user
+    return role_checker
 
 
 async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
@@ -299,19 +345,39 @@ async def get_fence():
 @app.post("/auth/login", response_model=TokenResponse, tags=["auth"])
 async def login(payload: LoginRequest):
     """
-    Basic login:
+    Authenticate user with email and password.
 
     - Accepts JSON: {"email": "...", "password": "..."}
-    - Checks against hardcoded operator user
-    - On success: returns a JWT access token + role
+    - Verifies password using bcrypt
+    - On success: returns a JWT access token with role claim
+    - Logs LOGIN_SUCCESS or LOGIN_FAIL to events.jsonl
     """
     user = USERS_DB.get(payload.email)
-    if not user or payload.password != user["password"]:
-        # invalid email or password
+    now = datetime.now(timezone.utc).isoformat()
+    
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        # Log failed login attempt (do NOT log the password)
+        append_event({
+            "ts": now,
+            "type": "LOGIN_FAIL",
+            "message": f"Failed login attempt for {payload.email}",
+            "source": "auth",
+            "username": payload.email,
+        })
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    
+    # Log successful login
+    append_event({
+        "ts": now,
+        "type": "LOGIN_SUCCESS",
+        "message": f"User {payload.email} logged in",
+        "source": "auth",
+        "username": payload.email,
+        "role": user["role"],
+    })
 
     access_token = create_access_token(subject=payload.email, role=user["role"])
 
@@ -374,6 +440,10 @@ async def websocket_state(websocket: WebSocket):
     except WebSocketDisconnect:
         # Client disconnected – nothing special to do for now
         pass
+    except Exception as e:
+        print(f"[WS /ws/state] Unhandled exception: {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 @app.websocket("/ws/alerts")
@@ -515,7 +585,7 @@ def _command_response(cmd: str, user_email: str) -> dict:
 @app.post("/cmd/pause", tags=["commands"])
 async def cmd_pause(
     body: CommandRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("operator")),
 ):
     return _command_response("pause", user.get("sub", "unknown"))
 
@@ -523,7 +593,7 @@ async def cmd_pause(
 @app.post("/cmd/resume", tags=["commands"])
 async def cmd_resume(
     body: CommandRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("operator")),
 ):
     return _command_response("resume", user.get("sub", "unknown"))
 
@@ -531,7 +601,7 @@ async def cmd_resume(
 @app.post("/cmd/rtl", tags=["commands"])
 async def cmd_rtl(
     body: CommandRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("operator")),
 ):
     return _command_response("rtl", user.get("sub", "unknown"))
 
@@ -539,7 +609,7 @@ async def cmd_rtl(
 @app.post("/cmd/land", tags=["commands"])
 async def cmd_land(
     body: CommandRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("operator")),
 ):
     return _command_response("land", user.get("sub", "unknown"))
 
@@ -551,7 +621,7 @@ class TargetSelectRequest(BaseModel):
 @app.post("/cmd/select", tags=["commands"])
 async def cmd_select_target(
     body: TargetSelectRequest,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_role("operator")),
 ):
     """Select a target to follow by ID."""
     target_id = body.target_id

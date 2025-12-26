@@ -57,7 +57,14 @@ function AppShell() {
       setConnectionStatus('error');
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('WebSocket /ws/state closed:', { code: event.code, reason: event.reason, wasClean: event.wasClean });
+      // Auth-related close codes from backend: 1008=no token, 4001=expired, 4002=invalid
+      if (event.code === 4001 || event.code === 4002 || event.code === 1008) {
+        clearAuth();
+        navigate('/login', { replace: true });
+        return;
+      }
       setConnectionStatus('disconnected');
     };
 
@@ -98,7 +105,13 @@ function AppShell() {
       setAlertsStatus('error');
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      // Auth-related close codes from backend: 1008=no token, 4001=expired, 4002=invalid
+      if (event.code === 4001 || event.code === 4002 || event.code === 1008) {
+        clearAuth();
+        navigate('/login', { replace: true });
+        return;
+      }
       setAlertsStatus('disconnected');
     };
 
