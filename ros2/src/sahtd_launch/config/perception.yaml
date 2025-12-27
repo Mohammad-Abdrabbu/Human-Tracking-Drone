@@ -19,8 +19,7 @@ yolo_node:
     # Only detect person class (COCO id 0)
     class_filter: [0]
 
-    # Optional debug outputs
-    publish_debug_image: true
+    # Enable FPS logging
     debug_fps_log: true
 
 bytetrack_node:

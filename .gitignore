@@ -37,6 +37,7 @@ bags/
 
 # Event logs (keep folder, ignore data)
 data/logs/*.jsonl
+data/perf/
 
 # (Optional) If you don't want to commit YOLO weights / zips, uncomment:
 *.zip

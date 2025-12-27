@@ -57,12 +57,9 @@ class YoloDetNode(Node):
         self.declare_parameter('model_path', default_model_path)
         self.declare_parameter('conf', 0.25)
         self.declare_parameter('imgsz', 416)
-        self.declare_parameter('publish_debug_image', True)
-        
         # New params for backlog fix
         self.declare_parameter('process_hz', 0.0)          # 0 = as fast as possible
         self.declare_parameter('max_age_ms', 250)          # Drop frames older than this
-        self.declare_parameter('debug_pub_hz', 10.0)       # Debug image max publish rate
         self.declare_parameter('camera_resize_enable', True)
         self.declare_parameter('camera_resize_mode', 'letterbox')  # 'letterbox' or 'stretch'
         self.declare_parameter('camera_resize_imgsz', 416)
@@ -74,11 +71,9 @@ class YoloDetNode(Node):
             self.model_path = default_model_path
         self.conf = float(self.get_parameter('conf').value)
         self.imgsz = int(self.get_parameter('imgsz').value)
-        self.pub_dbg = bool(self.get_parameter('publish_debug_image').value)
         
         self.process_hz = float(self.get_parameter('process_hz').value)
         self.max_age_ms = int(self.get_parameter('max_age_ms').value)
-        self.debug_pub_hz = float(self.get_parameter('debug_pub_hz').value)
         self.resize_enable = bool(self.get_parameter('camera_resize_enable').value)
         self.resize_mode = str(self.get_parameter('camera_resize_mode').value)
         self.resize_imgsz = int(self.get_parameter('camera_resize_imgsz').value)
@@ -103,7 +98,6 @@ class YoloDetNode(Node):
         self.sub = self.create_subscription(Image, '/camera/image_raw', self._on_image, qos_img)
         self.pub_det = self.create_publisher(Detection2DArray, '/perception/detections', qos_det)
         self.pub_cnt = self.create_publisher(Int32, '/perception/detections_count', 1)
-        self.pub_dbg_img = self.create_publisher(Image, '/perception/debug_image', 1) if self.pub_dbg else None
         
         # --- Thread-safe state ---
         self._lock = threading.Lock()
@@ -114,7 +108,6 @@ class YoloDetNode(Node):
         self._processed_count = 0
         self._dropped_stale = 0
         self._last_log_time = time.time()
-        self._last_dbg_pub_time = 0.0
         
         # --- Start worker thread ---
         self._worker = threading.Thread(target=self._worker_loop, daemon=True)
@@ -206,7 +199,6 @@ class YoloDetNode(Node):
         )
         
         count = 0
-        dbg = frame.copy() if self.pub_dbg and self.pub_dbg_img is not None else None
         
         for r in results:
             if not getattr(r, 'boxes', None):
@@ -233,26 +225,9 @@ class YoloDetNode(Node):
                 out.detections.append(det)
                 count += 1
                 
-                # Draw on debug image (original coordinates)
-                if dbg is not None:
-                    cv2.rectangle(dbg, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
-                    cv2.putText(
-                        dbg, f"person {score:.2f}", 
-                        (int(x1), max(0, int(y1) - 5)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA
-                    )
-        
         # Publish detections
         self.pub_det.publish(out)
         self.pub_cnt.publish(Int32(data=count))
-        
-        # Publish debug image (rate-limited)
-        if dbg is not None:
-            now = time.time()
-            min_interval = 1.0 / max(0.1, self.debug_pub_hz)
-            if now - self._last_dbg_pub_time >= min_interval:
-                self.pub_dbg_img.publish(self.bridge.cv2_to_imgmsg(dbg, encoding='bgr8'))
-                self._last_dbg_pub_time = now
     
     def destroy_node(self):
         """Clean shutdown of worker thread."""

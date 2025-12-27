@@ -29,5 +29,14 @@ echo "[sahtd_px4] GZ_SIM_RESOURCE_PATH: $GZ_SIM_RESOURCE_PATH"
 # Using environment variables instead of make target (Gazebo Harmonic method)
 # PX4_SYS_AUTOSTART: 4010 = x500_mono_cam (forward-facing camera)
 # PX4_GZ_WORLD: world SDF name (without .sdf extension)
-exec env PX4_SYS_AUTOSTART=4010 PX4_GZ_MODEL_POSE="0,0,0.05" PX4_GZ_MODEL=x500_mono_cam PX4_GZ_WORLD="$GZ_WORLD" ./build/px4_sitl_default/bin/px4
+#
+# HEADLESS mode: Set SAHTD_HEADLESS=1 to run Gazebo without GUI (server-only)
+# This is useful for performance testing and CI environments.
+HEADLESS_ENV=""
+if [ "${SAHTD_HEADLESS:-0}" = "1" ]; then
+    echo "[sahtd_px4] Running in HEADLESS mode (no Gazebo GUI)"
+    HEADLESS_ENV="HEADLESS=1"
+fi
+
+exec env $HEADLESS_ENV PX4_SYS_AUTOSTART=4010 PX4_GZ_MODEL_POSE="0,0,0.05" PX4_GZ_MODEL=x500_mono_cam PX4_GZ_WORLD="$GZ_WORLD" ./build/px4_sitl_default/bin/px4
 

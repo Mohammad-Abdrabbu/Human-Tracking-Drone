@@ -3,7 +3,7 @@
 # Single command to bring up, configure, and run the full SAHTD demo
 #
 # Usage:
-#   demo_committee.sh up [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
+#   demo_committee.sh up [--headless on|off] [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--autoselect] [--world <name>] [--timeout <sec>]
 #   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
 #   demo_committee.sh select [--policy best|first] [--timeout <sec>]
 #   demo_committee.sh status
@@ -50,7 +50,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--headless on|off] [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -64,6 +64,7 @@ Subcommands:
   reset     Stop all services and clean up
 
 Options for 'up':
+  --headless on|off    Run Gazebo without GUI (default: off)
   --guard on|off       Enable or disable geofence (default: on)
   --markers on|off     Spawn fence markers in Gazebo (default: on)
   --events on|off      Enable event logging (default: on)
@@ -199,6 +200,7 @@ spawn_standing_humans() {
 # === Subcommand: up ===
 
 cmd_up() {
+    local headless="off"
     local guard="on"
     local markers="on"
     local events="on"
@@ -213,6 +215,7 @@ cmd_up() {
     # Parse args
     while [[ $# -gt 0 ]]; do
         case $1 in
+            --headless) headless="$2"; shift 2 ;;
             --guard) guard="$2"; shift 2 ;;
             --markers) markers="$2"; shift 2 ;;
             --events) events="$2"; shift 2 ;;
@@ -227,6 +230,12 @@ cmd_up() {
         esac
     done
     
+    # Export headless mode for start_px4.sh
+    if [ "$headless" = "on" ]; then
+        export SAHTD_HEADLESS=1
+        echo -e "${YELLOW}Running in HEADLESS mode (no Gazebo GUI)${NC}"
+    fi
+    
     print_header
     
     # Step 1: Start or attach to stack
@@ -238,7 +247,12 @@ cmd_up() {
         tmux new-session -d -s $SESSION_NAME -n "stack"
         tmux split-window -v -t $SESSION_NAME
         tmux select-pane -t 0
-        tmux send-keys -t $SESSION_NAME "cd $SAHTD_ROOT && $SAHTD_ROOT/scripts/core/start_px4.sh" C-m
+        # Pass SAHTD_HEADLESS to the tmux pane if headless mode is enabled
+        if [ "$headless" = "on" ]; then
+            tmux send-keys -t $SESSION_NAME "export SAHTD_HEADLESS=1 && cd $SAHTD_ROOT && $SAHTD_ROOT/scripts/core/start_px4.sh" C-m
+        else
+            tmux send-keys -t $SESSION_NAME "cd $SAHTD_ROOT && $SAHTD_ROOT/scripts/core/start_px4.sh" C-m
+        fi
         tmux select-pane -t 1
         tmux send-keys -t $SESSION_NAME "cd $SAHTD_ROOT && sleep 15 && $SAHTD_ROOT/scripts/core/start_ros.sh" C-m
         echo -e "${YELLOW}  Stack starting in background (tmux: $SESSION_NAME)${NC}"
