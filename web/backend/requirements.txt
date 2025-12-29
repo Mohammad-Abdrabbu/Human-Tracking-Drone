@@ -26,9 +26,9 @@ domain-coordinator==0.10.0
 example-interfaces==0.9.3
 exceptiongroup==1.3.1
 fastapi==0.122.0
+sqlalchemy==2.0.23
 bcrypt==4.2.1
 geometry-msgs==4.9.0
--e git+ssh://git@github.com/Mohammad-Abdrabbu/Human-Tracking-Drone.git@5e108f0586c939fc038d282852b40afb24acf131#egg=gp2_perception&subdirectory=ws/gp2_ws/build/gp2_perception
 gps-msgs==2.1.1
 h11==0.16.0
 httptools==0.7.1

@@ -14,8 +14,13 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, Header, Depends
 
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
+from sqlalchemy.orm import Session
 import yaml
+
+# Database imports
+from .db import get_db, SessionLocal
+from .models import User
 
 # Load .env variables at import time
 load_dotenv()
@@ -91,23 +96,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# In-Memory User Store (bcrypt hashed passwords)
+# In-Memory User Store - REMOVED
 # ---------------------------------------------------------------------------
-# Pre-computed hashes for demo passwords:
-#   operator: secret123
-#   viewer: viewer123
-# To generate new hashes: python -c "import bcrypt; print(bcrypt.hashpw(b'yourpassword', bcrypt.gensalt()).decode())"
-
-USERS_DB = {
-    "operator@uop.edu.jo": {
-        "password_hash": "$2b$12$yb/kNy/owvNXFcJQlsE.CeyY162xMBrRzSEgscfdTBsNKfRtomt8.",  # secret123
-        "role": "operator",
-    },
-    "viewer@uop.edu.jo": {
-        "password_hash": "$2b$12$xZlwf2.2qaaCxgvZzJV4bO5eFhlUF0EGFqxmfA6DcN217KzDmG1Bu",  # viewer123
-        "role": "viewer",
-    },
-}
+# User data is now stored in SQLite database at ~/sahtd/data/db/sahtd.db
+# Use scripts/init_db.py --seed to initialize the database with default users.
+# ---------------------------------------------------------------------------
 
 
 class LoginRequest(BaseModel):
@@ -120,9 +113,37 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     role: str
 
+
 class CommandRequest(BaseModel):
     source: str | None = "ui"
 
+
+# ---------------------------------------------------------------------------
+# User Management Request/Response Models
+# ---------------------------------------------------------------------------
+
+class CreateUserRequest(BaseModel):
+    """Request model for creating a new user."""
+    email: str
+    password: str
+    role: str = "viewer"
+
+
+class UpdateUserRequest(BaseModel):
+    """Request model for updating a user."""
+    is_active: bool | None = None
+    role: str | None = None
+    password: str | None = None  # For password reset
+
+
+class UserResponse(BaseModel):
+    """Response model for user data (excludes sensitive fields)."""
+    id: int
+    email: str
+    role: str
+    is_active: bool
+    created_at: str | None
+    last_login_at: str | None
 
 
 app = FastAPI(
@@ -173,24 +194,42 @@ app.add_middleware(
 )
 
 
-def create_access_token(subject: str, role: str) -> str:
-    """Create a signed JWT for a given user/role."""
+def create_access_token(subject: str, role: str, token_version: int = 0) -> str:
+    """
+    Create a signed JWT for a given user/role.
+    
+    Args:
+        subject: User email (stored in 'sub' claim)
+        role: User role (stored in 'role' claim)
+        token_version: Token version for revocation (stored in 'tv' claim)
+    """
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": subject,
         "role": role,
         "exp": expire,
+        "tv": token_version,  # Token version for revocation
     }
     token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return token
 
-async def get_current_user(authorization: str = Header(...)) -> dict:
+
+async def get_current_user(
+    authorization: str = Header(...),
+    db: Session = Depends(get_db),
+) -> dict:
     """
-    Simple Bearer token auth for REST endpoints.
+    Bearer token auth for REST endpoints with database validation.
 
     Expects: Authorization: Bearer <JWT>
 
-    Returns decoded payload on success, raises 401 on failure.
+    Validates:
+    - JWT signature and expiration
+    - User exists in database
+    - User is_active is True
+    - JWT token_version (tv) matches user.token_version
+
+    Returns dict with user info on success, raises 401 on failure.
     """
     if not authorization.startswith("Bearer "):
         raise HTTPException(
@@ -201,7 +240,6 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
     token = authorization.removeprefix("Bearer ").strip()
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -212,6 +250,39 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
+    
+    # Validate user exists and is active in database
+    email = payload.get("sub")
+    user = db.query(User).filter(User.email == email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is disabled",
+        )
+    
+    # Check token version for revocation
+    jwt_token_version = payload.get("tv", 0)
+    if jwt_token_version != user.token_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+        )
+    
+    # Return user info dict (using DB role as source of truth)
+    return {
+        "sub": user.email,
+        "role": user.role,
+        "user_id": user.id,
+        "tv": user.token_version,
+    }
+
 
 
 def require_role(required_role: str):
@@ -240,7 +311,13 @@ async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
 
         ws://localhost:8000/ws/state?token=...JWT...
 
-    Returns the decoded payload on success, or closes the socket and returns None on failure.
+    Validates:
+    - JWT signature and expiration
+    - User exists in database
+    - User is_active is True
+    - JWT token_version (tv) matches user.token_version
+
+    Returns the user info dict on success, or closes the socket and returns None on failure.
     """
     token = websocket.query_params.get("token")
     if not token:
@@ -250,7 +327,6 @@ async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
 
     try:
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        return payload
     except jwt.ExpiredSignatureError:
         # Token expired
         await websocket.close(code=4001)
@@ -259,6 +335,31 @@ async def get_user_from_websocket(websocket: WebSocket) -> Optional[dict]:
         # Invalid token
         await websocket.close(code=4002)
         return None
+    
+    # Validate user in database
+    db = SessionLocal()
+    try:
+        email = payload.get("sub")
+        user = db.query(User).filter(User.email == email).first()
+        
+        if not user or not user.is_active:
+            await websocket.close(code=4003)  # User not found or inactive
+            return None
+        
+        # Check token version for revocation
+        jwt_token_version = payload.get("tv", 0)
+        if jwt_token_version != user.token_version:
+            await websocket.close(code=4004)  # Token revoked
+            return None
+        
+        return {
+            "sub": user.email,
+            "role": user.role,
+            "user_id": user.id,
+        }
+    finally:
+        db.close()
+
 
 
 def iso_timestamp_z() -> str:
@@ -348,19 +449,28 @@ async def get_fence():
 
 
 @app.post("/auth/login", response_model=TokenResponse, tags=["auth"])
-async def login(payload: LoginRequest):
+async def login(payload: LoginRequest, db: Session = Depends(get_db)):
     """
     Authenticate user with email and password.
 
     - Accepts JSON: {"email": "...", "password": "..."}
+    - Queries user from SQLite database
     - Verifies password using bcrypt
-    - On success: returns a JWT access token with role claim
+    - On success: updates last_login_at, resets failed_attempts, returns JWT with token_version
     - Logs LOGIN_SUCCESS or LOGIN_FAIL to events.jsonl
     """
-    user = USERS_DB.get(payload.email)
     now = iso_timestamp_z()
     
-    if not user or not verify_password(payload.password, user["password_hash"]):
+    # Query user from database
+    user = db.query(User).filter(User.email == payload.email).first()
+    
+    # Check if user exists, is active, and password matches
+    login_valid = False
+    if user and user.is_active:
+        if verify_password(payload.password, user.password_hash):
+            login_valid = True
+    
+    if not login_valid:
         # Log failed login attempt (do NOT log the password)
         append_event({
             "ts": now,
@@ -369,10 +479,21 @@ async def login(payload: LoginRequest):
             "source": "auth",
             "username": payload.email,
         })
+        
+        # Increment failed attempts if user exists
+        if user:
+            user.failed_attempts += 1
+            db.commit()
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
         )
+    
+    # Update login metadata
+    user.last_login_at = datetime.now(timezone.utc)
+    user.failed_attempts = 0
+    db.commit()
     
     # Log successful login
     append_event({
@@ -381,15 +502,197 @@ async def login(payload: LoginRequest):
         "message": f"User {payload.email} logged in",
         "source": "auth",
         "username": payload.email,
-        "role": user["role"],
+        "role": user.role,
     })
 
-    access_token = create_access_token(subject=payload.email, role=user["role"])
+    access_token = create_access_token(
+        subject=payload.email,
+        role=user.role,
+        token_version=user.token_version,
+    )
 
     return TokenResponse(
         access_token=access_token,
-        role=user["role"],
+        role=user.role,
     )
+
+
+# ---------------------------------------------------------------------------
+# User Management Endpoints (Operator Only)
+# ---------------------------------------------------------------------------
+
+@app.post("/auth/users", tags=["auth"])
+async def create_user(
+    payload: CreateUserRequest,
+    current_user: dict = Depends(require_role("operator")),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new user. Operator role required.
+
+    - Validates email is unique
+    - Hashes password with bcrypt
+    - Returns created user info (excluding password)
+    """
+    # Check if email already exists
+    existing = db.query(User).filter(User.email == payload.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered",
+        )
+    
+    # Validate role
+    if payload.role not in ("operator", "viewer"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Role must be 'operator' or 'viewer'",
+        )
+    
+    # Create user
+    new_user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        role=payload.role,
+        is_active=True,
+        token_version=0,
+        created_at=datetime.now(timezone.utc),
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    # Log user creation
+    append_event({
+        "ts": iso_timestamp_z(),
+        "type": "USER_CREATED",
+        "message": f"User {payload.email} created by {current_user['sub']}",
+        "source": "auth",
+        "created_by": current_user["sub"],
+        "new_user_email": payload.email,
+        "new_user_role": payload.role,
+    })
+    
+    return {
+        "id": new_user.id,
+        "email": new_user.email,
+        "role": new_user.role,
+        "is_active": new_user.is_active,
+        "created_at": new_user.created_at.isoformat() if new_user.created_at else None,
+    }
+
+
+@app.get("/auth/users", tags=["auth"])
+async def list_users(
+    current_user: dict = Depends(require_role("operator")),
+    db: Session = Depends(get_db),
+):
+    """
+    List all users. Operator role required.
+
+    Returns list of users (excluding password hashes).
+    """
+    users = db.query(User).all()
+    return [
+        {
+            "id": u.id,
+            "email": u.email,
+            "role": u.role,
+            "is_active": u.is_active,
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+            "failed_attempts": u.failed_attempts,
+        }
+        for u in users
+    ]
+
+
+@app.patch("/auth/users/{user_id}", tags=["auth"])
+async def update_user(
+    user_id: int,
+    payload: UpdateUserRequest,
+    current_user: dict = Depends(require_role("operator")),
+    db: Session = Depends(get_db),
+):
+    """
+    Update a user. Operator role required.
+
+    - Can update: is_active, role, password
+    - When disabling account or resetting password: increments token_version to revoke all tokens
+    - Cannot modify own account's is_active status (safety)
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    
+    # Track if we need to revoke tokens
+    revoke_tokens = False
+    changes = []
+    
+    # Update is_active
+    if payload.is_active is not None:
+        # Prevent self-deactivation
+        if user.email == current_user["sub"] and not payload.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot deactivate your own account",
+            )
+        if user.is_active != payload.is_active:
+            user.is_active = payload.is_active
+            changes.append(f"is_active={payload.is_active}")
+            if not payload.is_active:
+                revoke_tokens = True  # Revoke tokens when disabling
+    
+    # Update role
+    if payload.role is not None:
+        if payload.role not in ("operator", "viewer"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Role must be 'operator' or 'viewer'",
+            )
+        if user.role != payload.role:
+            user.role = payload.role
+            changes.append(f"role={payload.role}")
+            revoke_tokens = True  # Revoke tokens when changing role
+    
+    # Reset password
+    if payload.password is not None:
+        user.password_hash = hash_password(payload.password)
+        changes.append("password=****")
+        revoke_tokens = True  # Revoke tokens when changing password
+    
+    # Increment token_version if needed
+    if revoke_tokens:
+        user.token_version += 1
+        changes.append(f"token_version={user.token_version}")
+    
+    db.commit()
+    
+    # Log user update
+    if changes:
+        append_event({
+            "ts": iso_timestamp_z(),
+            "type": "USER_UPDATED",
+            "message": f"User {user.email} updated by {current_user['sub']}: {', '.join(changes)}",
+            "source": "auth",
+            "updated_by": current_user["sub"],
+            "target_user_email": user.email,
+            "changes": changes,
+            "tokens_revoked": revoke_tokens,
+        })
+    
+    return {
+        "id": user.id,
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active,
+        "token_version": user.token_version,
+        "tokens_revoked": revoke_tokens,
+    }
+
 
 @app.websocket("/ws/state")
 async def websocket_state(websocket: WebSocket):
