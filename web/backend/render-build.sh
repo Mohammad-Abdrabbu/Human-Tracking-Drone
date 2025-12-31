@@ -14,4 +14,8 @@ pip install -r requirements-render.txt
 echo "Initializing database..."
 python -c "from app.db import init_db; init_db()"
 
+# Seed default users
+echo "Seeding database..."
+python scripts/seed_db.py
+
 echo "=== Build Complete ==="
