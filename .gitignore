@@ -14,6 +14,13 @@ log/
 # PX4 checkout (clone from upstream, not stored here)
 third_party/PX4-Autopilot/
 
+# ros_gz_bridge (clone from https://github.com/gazebosim/ros_gz -b humble)
+ros2_bridge/
+
+# Symlinks to external packages (restored via disaster-recovery workflow)
+ros2/src/px4
+ros2/src/ros_gz_interfaces
+
 # Python
 __pycache__/
 *.pyc
