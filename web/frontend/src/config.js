@@ -17,10 +17,11 @@ export const getStoredConfig = () => {
     const mode = localStorage.getItem('sahtd_mode');
 
     if (mode === 'cloud') {
+        const videoOverride = localStorage.getItem('sahtd_video_override');
         return {
             apiBaseUrl: DEFAULTS.cloud.api,
             wsBaseUrl: DEFAULTS.cloud.ws,
-            videoUrl: DEFAULTS.cloud.video,
+            videoUrl: videoOverride || DEFAULTS.cloud.video,
             mode: 'cloud'
         };
     }
@@ -32,6 +33,12 @@ export const getStoredConfig = () => {
         videoUrl: DEFAULTS.local.video,
         mode: 'local'
     };
+};
+
+export const setVideoOverride = (url) => {
+    if (!url) localStorage.removeItem('sahtd_video_override');
+    else localStorage.setItem('sahtd_video_override', url);
+    window.location.reload();
 };
 
 export const toggleEnvironment = () => {

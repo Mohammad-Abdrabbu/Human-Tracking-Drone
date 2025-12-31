@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
 import Layout from '../ui/Layout';
 
-import { API_BASE_URL, WS_BASE_URL, VIDEO_URL, APP_MODE, toggleEnvironment } from '../config';
+import { API_BASE_URL, WS_BASE_URL, VIDEO_URL, APP_MODE, toggleEnvironment, setVideoOverride } from '../config';
 
 function AppShell() {
   const navigate = useNavigate();
@@ -365,24 +365,58 @@ function AppShell() {
 
           {/* Live Video Feed with tracked targets */}
           <div className="target-video-container">
-            <img
-              src={VIDEO_URL}
-              alt="Live camera feed with tracked targets"
-              className="target-video"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.nextElementSibling.style.display = 'flex';
-              }}
-              onLoad={(e) => {
-                e.target.style.display = 'block';
-                e.target.nextElementSibling.style.display = 'none';
-              }}
-            />
-            <div className="target-video-placeholder">
+            {VIDEO_URL ? (
+              <img
+                src={VIDEO_URL}
+                alt="Live camera feed with tracked targets"
+                className="target-video"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextElementSibling.style.display = 'flex';
+                }}
+                onLoad={(e) => {
+                  e.target.style.display = 'block';
+                  e.target.nextElementSibling.style.display = 'none';
+                }}
+              />
+            ) : null}
+
+            <div className="target-video-placeholder" style={{ display: VIDEO_URL ? 'none' : 'flex' }}>
               <span className="target-video-icon">📹</span>
-              <span className="target-video-text">Video stream unavailable</span>
-              <span className="target-video-hint">Run: ros2 run sahtd_web_bridge video_bridge_node</span>
+              <span className="target-video-text">
+                {APP_MODE === 'cloud' ? 'Cloud Video Stream' : 'Video stream unavailable'}
+              </span>
+              <span className="target-video-hint">
+                {APP_MODE === 'cloud'
+                  ? 'Cloud requires a public ngrok URL for video.'
+                  : 'Run: ros2 run sahtd_web_bridge video_bridge_node'}
+              </span>
+
+              {APP_MODE === 'cloud' && (
+                <button
+                  onClick={() => {
+                    const url = prompt('Enter your ngrok video URL (e.g. https://xxxx.ngrok-free.app/video):', VIDEO_URL);
+                    if (url !== null) setVideoOverride(url);
+                  }}
+                  className="mt-4 btn btn--sm btn--primary"
+                >
+                  {VIDEO_URL ? 'Change Stream URL' : 'Set Stream URL'}
+                </button>
+              )}
             </div>
+
+            {/* Overlay button for Cloud mode to change existing URL */}
+            {APP_MODE === 'cloud' && VIDEO_URL && (
+              <button
+                onClick={() => {
+                  const url = prompt('Update ngrok video URL:', VIDEO_URL);
+                  if (url !== null) setVideoOverride(url);
+                }}
+                className="absolute top-2 right-2 btn btn--sm btn--secondary opacity-50 hover:opacity-100"
+              >
+                ⚙️ Stream
+              </button>
+            )}
           </div>
           <div className="target-ids-container">
             <span className="target-ids-label">Visible Targets:</span>
