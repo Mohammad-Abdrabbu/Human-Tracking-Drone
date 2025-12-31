@@ -1,6 +1,22 @@
-# SAHTD VPS Production Deployment (Lean Approach)
+# SAHTD Deployment Guide
 
-Deploy only what's needed on VPS: `web/backend` + built frontend + database.
+## 🚀 Choose Your Path
+
+### **Option A: Render.com (Recommended)**
+**Status:** ✅ Fully Automated | Free Tier Available
+Automatic deployment of Backend, Frontend, and PostgreSQL Database. No manual server configuration required.
+👉 **[Read the Render Deployment Guide](README_RENDER.md)**
+
+---
+
+### **Option B: Manual VPS (Legacy)**
+**Status:** 🛠️ Manual Setup Required (DigitalOcean, Linode, AWS EC2)
+Full control over the server. Requires Nginx, Certbot, Systemd, and UFW configuration.
+Follow the steps below for manual setup.
+
+---
+
+# SAHTD VPS Production Deployment (Manual)
 
 ## Architecture
 
