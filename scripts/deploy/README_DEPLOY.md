@@ -118,7 +118,7 @@ EOF
 
 echo "========================================="
 echo "SAVE THIS INGEST_TOKEN for sim connector:"
-echo "${INGEST_TOKEN}"
+echo "${INGEST_TOKEN} 41ba16f14be6d4456d1ed6ab92749d460388d39d6683c3e98a8b8e4c0090c9bf" 
 echo "========================================="
 
 # Initialize database
@@ -131,7 +131,14 @@ python -c "from app.db import init_db; init_db()"
 
 ## Phase 3: Backend Systemd Service
 
+> **User**: `ramadan` (or any sudo user)  
+> **Directory**: Any (paths are absolute)
+
 ```bash
+# Exit sahtd user if logged in
+exit
+
+# Create systemd service (as ramadan with sudo)
 sudo tee /etc/systemd/system/sahtd-backend.service << 'EOF'
 [Unit]
 Description=SAHTD Backend API
@@ -158,24 +165,25 @@ sudo systemctl start sahtd-backend
 # PROOF:
 sudo systemctl status sahtd-backend
 ss -lntp | grep 8000
+curl http://127.0.0.1:8000/health
 ```
 
 ---
 
 ## Phase 4: Deploy Frontend
 
+> **User**: `ramadan`  
+> **Directory**: `~/sahtd/web/frontend` for build, then any for copy
+
 ```bash
-# On LOCAL machine, build frontend
+# Build frontend
 cd ~/sahtd/web/frontend
 npm ci
 npm run build
 
-# Copy to VPS
-scp -r dist/* sahtd@VPS_IP:/tmp/frontend-dist/
-
-# On VPS:
+# Copy to nginx web root (from any directory)
 sudo mkdir -p /var/www/sahtd-frontend
-sudo cp -r /tmp/frontend-dist/* /var/www/sahtd-frontend/
+sudo cp -r ~/sahtd/web/frontend/dist/* /var/www/sahtd-frontend/
 sudo chown -R www-data:www-data /var/www/sahtd-frontend
 
 # PROOF:
@@ -186,50 +194,92 @@ ls -la /var/www/sahtd-frontend/
 
 ## Phase 5: Nginx + TLS
 
+> **User**: `ramadan` (with sudo)  
+> **Directory**: Any (paths are absolute)
+
+### Step 5a: Create minimal nginx config for certbot
+
 ```bash
-# Create nginx config (replace YOUR_DOMAIN)
+# Create initial nginx config (replace YOUR_DOMAIN)
 sudo tee /etc/nginx/sites-available/sahtd << 'EOF'
 server {
     listen 80;
     server_name YOUR_DOMAIN;
     root /var/www/sahtd-frontend;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
 }
 EOF
 
+# Enable site and remove default
 sudo ln -sf /etc/nginx/sites-available/sahtd /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 
-# Get TLS certificate
-sudo certbot --nginx -d YOUR_DOMAIN
-
-# Now expand nginx config (copy from nginx-sahtd.conf)
-# After certbot, it will have SSL configured
-
 # PROOF:
 sudo nginx -t
+curl -I http://localhost/
+```
+
+### Step 5b: Get TLS certificate (requires real domain pointing to VPS)
+
+```bash
+# This only works if YOUR_DOMAIN DNS points to this server
+sudo certbot --nginx -d YOUR_DOMAIN
+
+# PROOF:
+sudo certbot certificates
+```
+
+### Step 5c: Update nginx with full config (backend proxy + WebSocket)
+
+```bash
+# After certbot succeeds, replace with full config
+# Copy content from scripts/deploy/nginx-sahtd.conf and:
+# 1. Replace YOUR_DOMAIN with actual domain
+# 2. Update SSL paths if certbot used different paths
+
+sudo nano /etc/nginx/sites-available/sahtd
+# (paste full config from nginx-sahtd.conf)
+
+sudo nginx -t && sudo systemctl reload nginx
+
+# PROOF:
 curl -I https://YOUR_DOMAIN/
 curl -I https://YOUR_DOMAIN/health
 ```
 
 ---
 
-## Phase 6: Simulation Host Setup
+## Phase 6: Simulation Host Setup (Server A / Server B)
 
-Run on BOTH Server A and Server B:
+> **User**: `ramadan` (your normal user on simulation machine)  
+> **Directory**: Start from home `~`
+
+Run these on **each simulation machine** (Main PC = serverA, Laptop = serverB):
+
+### Step 6a: Install Tailscale
 
 ```bash
 # Install Tailscale
 curl -fsSL https://tailscale.com/install.sh | sh
 sudo tailscale up
 
-# Verify VPS connectivity
+# Verify connectivity to VPS
 tailscale status
 ping VPS_TAILSCALE_IP
+```
 
-# Create connector config
+### Step 6b: Create connector config
+
+```bash
+# Create config directory
 mkdir -p ~/.config/sahtd
 
+# Create env file (EDIT VALUES!)
 cat > ~/.config/sahtd/connector.env << EOF
 SAHTD_SOURCE_ID=serverA
 SAHTD_VPS_URL=https://YOUR_DOMAIN
@@ -239,23 +289,38 @@ EOF
 
 # Install requests module
 pip3 install requests
+```
 
-# Test connector manually
+### Step 6c: Test connector manually
+
+```bash
+cd ~/sahtd
 source ~/.config/sahtd/connector.env
-python3 ~/sahtd/scripts/deploy/sim_connector.py
+python3 scripts/deploy/sim_connector.py
 
-# Install systemd user service
+# Should see: [HEARTBEAT] 200: {"status":"ok"...}
+# Press Ctrl+C to stop
+```
+
+### Step 6d: Install systemd user service
+
+```bash
+# Create user systemd directory
 mkdir -p ~/.config/systemd/user
+
+# Copy service file
 cp ~/sahtd/scripts/deploy/sahtd-connector.service ~/.config/systemd/user/
 
+# Enable and start
 systemctl --user daemon-reload
 systemctl --user enable sahtd-connector
 loginctl enable-linger $USER
 
-# Start when ready to push data
+# Start service
 systemctl --user start sahtd-connector
 
 # PROOF:
+systemctl --user status sahtd-connector
 journalctl --user -u sahtd-connector -f
 ```
 
@@ -263,7 +328,7 @@ journalctl --user -u sahtd-connector -f
 
 ## Verification Commands
 
-### VPS
+### On VPS (as ramadan with sudo)
 
 ```bash
 # Backend running
@@ -277,14 +342,14 @@ sudo nginx -t
 # Firewall
 sudo ufw status
 
-# TLS
+# TLS (replace YOUR_DOMAIN)
 curl -I https://YOUR_DOMAIN/health
 
 # Tailscale
 tailscale status
 ```
 
-### Simulation Host
+### On Simulation Host (as ramadan)
 
 ```bash
 # Tailscale connected
@@ -294,6 +359,7 @@ tailscale status
 journalctl --user -u sahtd-connector -f
 
 # Demo still works
+cd ~/sahtd
 ./scripts/demo/demo_committee.sh up --guard on --markers on --events on --spawn --video on
 ```
 
@@ -301,9 +367,11 @@ journalctl --user -u sahtd-connector -f
 
 ## Troubleshooting
 
-| Issue | Command |
-|-------|---------|
-| Backend not starting | `journalctl -u sahtd-backend -f` |
-| Nginx 502 error | Check backend: `ss -lntp \| grep 8000` |
-| Ingest rejected | Check token matches VPS INGEST_TOKEN |
-| No data on website | Check connector logs: `journalctl --user -u sahtd-connector` |
+| Issue | User | Command |
+|-------|------|---------|
+| Backend not starting | ramadan | `journalctl -u sahtd-backend -f` |
+| Nginx 502 error | ramadan | `ss -lntp \| grep 8000` |
+| Ingest rejected | ramadan | Check token matches VPS INGEST_TOKEN |
+| No data on website | ramadan | `journalctl --user -u sahtd-connector` |
+| Permission denied | - | Make sure to use `sudo` for system paths |
+

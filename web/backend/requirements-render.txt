@@ -1,0 +1,31 @@
+# SAHTD Backend - Render Deployment Requirements
+# This file is used for production deployment on Render
+
+# FastAPI web framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Database - PostgreSQL for Render
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Authentication
+pyjwt>=2.8.0
+bcrypt>=4.0.0
+python-dotenv>=1.0.0
+
+# Validation
+pydantic>=2.0.0
+email-validator>=2.0.0
+
+# YAML config
+pyyaml>=6.0.0
+
+# HTTP client
+httpx>=0.24.0
+
+# ASGI server extras
+python-multipart>=0.0.6
+
+# WebSocket support (already in uvicorn[standard])
+websockets>=10.0

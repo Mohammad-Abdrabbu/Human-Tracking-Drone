@@ -1,0 +1,26 @@
+# SAHTD Backend - VPS/Render Production Requirements
+# FastAPI web framework
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Database
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+
+# Authentication
+pyjwt>=2.8.0
+bcrypt>=4.0.0
+python-dotenv>=1.0.0
+
+# Validation
+pydantic>=2.0.0
+email-validator>=2.0.0
+
+# YAML config
+pyyaml>=6.0.0
+
+# HTTP client (for any API calls)
+httpx>=0.24.0
+
+# ASGI server extras
+python-multipart>=0.0.6
