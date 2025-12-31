@@ -4,8 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getToken, clearAuth } from '../auth';
 import Layout from '../ui/Layout';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
-const WS_BASE_URL = import.meta.env.VITE_WS_BASE_URL || 'ws://127.0.0.1:8000';
+import { API_BASE_URL, WS_BASE_URL, VIDEO_URL, APP_MODE, toggleEnvironment } from '../config';
 
 function AppShell() {
   const navigate = useNavigate();
@@ -229,6 +228,9 @@ function AppShell() {
   return (
     <Layout currentPage="control">
       <div className="control-panel">
+
+
+
         {/* Status Section */}
         <section className="status-section">
           {/* Main State Display */}
@@ -260,6 +262,25 @@ function AppShell() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+
+          {/* Environment Toggle */}
+          {/* Environment Toggle */}
+          <div className="connection-card">
+            <div className="connection-header">
+              <span className="connection-title">Environment</span>
+              <span className={`connection-dot ${APP_MODE === 'local' ? 'connection-dot--connected' : 'connection-dot--connecting'}`} />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className={`env-label env-label--${APP_MODE}`}>{APP_MODE}</span>
+              <button
+                onClick={toggleEnvironment}
+                className="env-btn"
+              >
+                Switch
+              </button>
             </div>
           </div>
 
@@ -345,7 +366,7 @@ function AppShell() {
           {/* Live Video Feed with tracked targets */}
           <div className="target-video-container">
             <img
-              src="http://localhost:8001/video"
+              src={VIDEO_URL}
               alt="Live camera feed with tracked targets"
               className="target-video"
               onError={(e) => {

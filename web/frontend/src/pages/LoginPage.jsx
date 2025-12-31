@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveAuth, isAuthenticated } from '../auth';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000';
+import { API_BASE_URL, APP_MODE, toggleEnvironment } from '../config';
 
 function LoginPage() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('operator@uop.edu.jo');
-  const [password, setPassword] = useState('secret123');
+  const [password, setPassword] = useState('operator123');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -57,6 +57,15 @@ function LoginPage() {
 
   return (
     <div className="login-screen">
+      <div className="env-pill">
+        <span className={`env-label env-label--${APP_MODE}`}>{APP_MODE}</span>
+        <button
+          onClick={toggleEnvironment}
+          className="env-btn"
+        >
+          Switch
+        </button>
+      </div>
       <div className="login-card">
         <header className="login-header">
           <div className="login-logo">◆</div>
