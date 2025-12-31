@@ -180,11 +180,20 @@ def _get_lan_ip() -> str:
 
 _LAN_IP = os.getenv("CORS_LAN_IP", _get_lan_ip())
 
+# CORS origins - localhost for dev, add production URLs via CORS_ORIGINS env var
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     f"http://{_LAN_IP}:5173",  # Auto-detected LAN IP
+    # Production origins
+    "https://sahtd-frontend.onrender.com",
+    "https://sahtd-backend.onrender.com",
 ]
+
+# Allow additional origins via environment variable (comma-separated)
+extra_origins = os.getenv("CORS_ORIGINS", "")
+if extra_origins:
+    origins.extend([o.strip() for o in extra_origins.split(",") if o.strip()])
 
 app.add_middleware(
     CORSMiddleware,
