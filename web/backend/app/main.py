@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 import asyncio
 import subprocess
 import uuid
+import ipaddress
 from typing import Optional
-from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, Header, Depends
+from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, Header, Depends, Request
 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
@@ -974,6 +975,125 @@ async def cmd_select_target(
         "timestamp": now,
         "message": f"Target {target_id} {'selected' if ros_success else 'selection failed (ROS unavailable)'}",
     }
+
+
+# ---------------------------------------------------------------------------
+# Ingest API (Simulation Machine → VPS) - Secured by Tailscale IP + Token
+# ---------------------------------------------------------------------------
+
+INGEST_TOKEN = os.getenv("INGEST_TOKEN", "")
+TAILSCALE_ALLOWED_IPS = os.getenv("TAILSCALE_ALLOWED_IPS", "100.64.0.0/10")
+
+
+def _parse_allowed_networks(cidr_str: str) -> list:
+    """Parse comma-separated CIDR strings into network objects."""
+    networks = []
+    for cidr in cidr_str.split(","):
+        cidr = cidr.strip()
+        if cidr:
+            try:
+                networks.append(ipaddress.ip_network(cidr, strict=False))
+            except ValueError:
+                pass
+    return networks
+
+
+ALLOWED_INGEST_NETWORKS = _parse_allowed_networks(TAILSCALE_ALLOWED_IPS)
+
+
+def verify_ingest_request(request: Request) -> bool:
+    """Verify ingest request comes from allowed Tailscale IP or has valid token."""
+    # Check X-Ingest-Token header
+    token = request.headers.get("X-Ingest-Token", "")
+    if INGEST_TOKEN and token == INGEST_TOKEN:
+        return True
+    
+    # Check client IP against Tailscale ranges
+    client_ip = request.headers.get("X-Real-IP", request.client.host if request.client else "")
+    try:
+        ip_obj = ipaddress.ip_address(client_ip)
+        for network in ALLOWED_INGEST_NETWORKS:
+            if ip_obj in network:
+                return True
+    except ValueError:
+        pass
+    
+    return False
+
+
+class IngestHeartbeat(BaseModel):
+    source_id: str
+    ts: str | None = None
+
+
+class IngestEvent(BaseModel):
+    source_id: str
+    event_type: str
+    data: dict = {}
+    ts: str | None = None
+
+
+class IngestTelemetry(BaseModel):
+    source_id: str
+    telemetry: dict
+    ts: str | None = None
+
+
+@app.post("/ingest/heartbeat", tags=["ingest"])
+async def ingest_heartbeat(payload: IngestHeartbeat, request: Request):
+    """Heartbeat from simulation connector."""
+    if not verify_ingest_request(request):
+        raise HTTPException(status_code=403, detail="Ingest not allowed from this source")
+    
+    now = iso_timestamp_z()
+    event = {
+        "ts": payload.ts or now,
+        "type": "SIM_HEARTBEAT",
+        "source": payload.source_id,
+        "message": f"Heartbeat from {payload.source_id}",
+    }
+    append_event(event)
+    print(f"[INGEST] Heartbeat from {payload.source_id}")
+    return {"status": "ok", "received_at": now}
+
+
+@app.post("/ingest/events", tags=["ingest"])
+async def ingest_events(payload: IngestEvent, request: Request):
+    """Receive events from simulation connector."""
+    if not verify_ingest_request(request):
+        raise HTTPException(status_code=403, detail="Ingest not allowed from this source")
+    
+    now = iso_timestamp_z()
+    event = {
+        "ts": payload.ts or now,
+        "type": payload.event_type,
+        "source": payload.source_id,
+        **payload.data,
+    }
+    append_event(event)
+    print(f"[INGEST] Event {payload.event_type} from {payload.source_id}")
+    return {"status": "ok", "received_at": now}
+
+
+@app.post("/ingest/telemetry", tags=["ingest"])
+async def ingest_telemetry(payload: IngestTelemetry, request: Request):
+    """Receive telemetry snapshot from simulation connector."""
+    if not verify_ingest_request(request):
+        raise HTTPException(status_code=403, detail="Ingest not allowed from this source")
+    
+    now = iso_timestamp_z()
+    telemetry = payload.telemetry.copy()
+    telemetry["source_id"] = payload.source_id
+    telemetry["ingested_at"] = now
+    if "ts" not in telemetry:
+        telemetry["ts"] = payload.ts or now
+    
+    # Append to telemetry.jsonl
+    TELEMETRY_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(TELEMETRY_LOG_PATH, "a") as f:
+        f.write(json.dumps(telemetry) + "\n")
+    
+    return {"status": "ok", "received_at": now}
 
 
 # Optional: allow `python -m app.main` as dev shortcut

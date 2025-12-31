@@ -1,0 +1,15 @@
+[Unit]
+Description=SAHTD Simulation Connector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/sahtd
+EnvironmentFile=%h/.config/sahtd/connector.env
+ExecStart=/usr/bin/python3 %h/sahtd/scripts/deploy/sim_connector.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

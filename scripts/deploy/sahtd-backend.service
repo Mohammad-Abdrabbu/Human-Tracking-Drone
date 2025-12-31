@@ -1,0 +1,18 @@
+[Unit]
+Description=SAHTD Backend API
+After=network.target
+
+[Service]
+Type=simple
+User=sahtd
+Group=sahtd
+WorkingDirectory=/home/sahtd/app/backend
+EnvironmentFile=/etc/sahtd/sahtd.env
+ExecStart=/home/sahtd/app/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
