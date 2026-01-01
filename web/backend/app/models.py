@@ -4,7 +4,9 @@ SQLAlchemy models for SAHTD backend.
 Defines the User model for authentication and user management.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, func
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from .db import Base
 
 
@@ -61,3 +63,38 @@ class User(Base):
         if include_sensitive:
             data["password_hash"] = self.password_hash
         return data
+
+
+class Event(Base):
+    """
+    Event model for durable event storage in PostgreSQL.
+    
+    Mirrors events from events.jsonl for cloud persistence.
+    Uses JSONB on PostgreSQL for efficient querying, falls back to JSON on SQLite.
+    
+    Attributes:
+        id: Primary key
+        ts: Event timestamp (from original event)
+        event_type: Event type (e.g., LOGIN_SUCCESS, GUARD_VIOLATION)
+        severity: Optional severity level (INFO, WARN, ERROR, CRITICAL)
+        source: Event source (e.g., auth, geo_guard, web-ui)
+        target_id: Optional target/track ID
+        session_id: Optional session identifier
+        payload: Full event data as JSON
+        created_at: Database insertion timestamp
+    """
+    __tablename__ = "events"
+
+    id = Column(Integer, primary_key=True, index=True)
+    ts = Column(DateTime(timezone=True), nullable=False, index=True)
+    event_type = Column(String(100), nullable=False, index=True)
+    severity = Column(String(20), nullable=True)
+    source = Column(String(100), nullable=True, index=True)
+    target_id = Column(Integer, nullable=True)
+    session_id = Column(String(100), nullable=True)
+    # Use JSONB on PostgreSQL, JSON on SQLite
+    payload = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<Event(id={self.id}, type='{self.event_type}', ts='{self.ts}')>"

@@ -18,15 +18,16 @@ from app.models import User
 def seed_users():
     """Create default users if they don't exist."""
     
+    # Read from environment variables with fallback to hardcoded defaults
     default_users = [
         {
-            "email": "operator@uop.edu.jo",
-            "password": "operator123",
+            "email": os.getenv("SAHTD_SEED_OPERATOR_EMAIL", "operator@uop.edu.jo"),
+            "password": os.getenv("SAHTD_SEED_OPERATOR_PASSWORD", "operator123"),
             "role": "operator",
         },
         {
-            "email": "viewer@uop.edu.jo", 
-            "password": "viewer123",
+            "email": os.getenv("SAHTD_SEED_VIEWER_EMAIL", "viewer@uop.edu.jo"), 
+            "password": os.getenv("SAHTD_SEED_VIEWER_PASSWORD", "viewer123"),
             "role": "viewer",
         },
         {

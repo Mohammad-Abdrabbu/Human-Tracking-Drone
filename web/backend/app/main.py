@@ -21,7 +21,7 @@ import yaml
 
 # Database imports
 from .db import get_db, SessionLocal
-from .models import User
+from .models import User, Event
 
 # Load .env variables at import time
 load_dotenv()
@@ -222,10 +222,12 @@ def create_access_token(subject: str, role: str, token_version: int = 0) -> str:
         token_version: Token version for revocation (stored in 'tv' claim)
     """
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    issued_at = datetime.now(timezone.utc)
     payload = {
         "sub": subject,
         "role": role,
         "exp": expire,
+        "iat": issued_at,  # Issued-at timestamp
         "tv": token_version,  # Token version for revocation
     }
     token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
@@ -387,12 +389,51 @@ def iso_timestamp_z() -> str:
 
 def append_event(event: dict) -> None:
     """
-    Append an event to the events.jsonl log file.
-    Creates the file and parent directories if they don't exist.
+    Append an event to events.jsonl AND mirror to PostgreSQL.
+    
+    - JSONL write is always attempted (primary/fallback log)
+    - PostgreSQL insert is best-effort (non-blocking on failure)
     """
-    EVENTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(EVENTS_LOG_PATH, "a") as f:
-        f.write(json.dumps(event) + "\n")
+    # 1. Always write to JSONL (existing behavior)
+    try:
+        EVENTS_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(EVENTS_LOG_PATH, "a") as f:
+            f.write(json.dumps(event) + "\n")
+    except Exception as e:
+        print(f"[EVENT] JSONL write failed: {e}")
+    
+    # 2. Mirror to PostgreSQL (best-effort, non-blocking)
+    try:
+        # Parse timestamp
+        ts_str = event.get("ts", "")
+        if ts_str:
+            # Handle ISO format with Z suffix
+            ts_str = ts_str.replace("Z", "+00:00")
+            try:
+                ts = datetime.fromisoformat(ts_str)
+            except ValueError:
+                ts = datetime.now(timezone.utc)
+        else:
+            ts = datetime.now(timezone.utc)
+        
+        db = SessionLocal()
+        try:
+            db_event = Event(
+                ts=ts,
+                event_type=event.get("type", event.get("event", "UNKNOWN")),
+                severity=event.get("severity"),
+                source=event.get("source"),
+                target_id=event.get("target_id"),
+                session_id=event.get("session_id"),
+                payload=event,
+            )
+            db.add(db_event)
+            db.commit()
+        finally:
+            db.close()
+    except Exception as e:
+        # Non-blocking: log warning but don't raise
+        print(f"[EVENT] PostgreSQL mirror failed (non-blocking): {e}")
 
 
 @app.get("/health", tags=["health"])
