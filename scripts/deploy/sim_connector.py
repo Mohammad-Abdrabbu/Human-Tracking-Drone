@@ -14,10 +14,12 @@ Environment variables:
 """
 import os
 import sys
+import sys
 import json
 import time
 import argparse
 import requests
+import subprocess
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -106,6 +108,67 @@ class Connector:
             pass
         except requests.exceptions.RequestException as e:
             print(f"[EVENT] ERROR: {e}")
+
+    def execute_command(self, cmd_obj: dict):
+        """Execute a command locally using ROS2 CLI."""
+        cmd_type = cmd_obj.get("cmd")
+        print(f"[CMD] Executing: {cmd_type}")
+        
+        try:
+            if cmd_type in ("pause", "resume", "rtl", "land"):
+                # Publish to /sahtd/cmd (String)
+                payload = json.dumps({
+                    "req_id": cmd_obj.get("req_id", "sim"),
+                    "cmd": cmd_type,
+                    "user": cmd_obj.get("user", "cloud"),
+                    "ts": iso_now()
+                })
+                subprocess.run(
+                    [
+                        'ros2', 'topic', 'pub', '--once',
+                        '/sahtd/cmd', 'std_msgs/msg/String',
+                        f'data: \'{payload}\''
+                    ],
+                    capture_output=True, timeout=5.0
+                )
+                
+            elif cmd_type == "select_target":
+                # Publish to /perception/target_select (Int32)
+                target_id = cmd_obj.get("data", {}).get("target_id", 0)
+                subprocess.run(
+                    [
+                        'ros2', 'topic', 'pub', '--once',
+                        '/perception/target_select', 'std_msgs/msg/Int32',
+                        f'data: {target_id}'
+                    ],
+                    capture_output=True, timeout=5.0
+                )
+                
+            else:
+                print(f"[CMD] Unknown command type: {cmd_type}")
+
+        except Exception as e:
+            print(f"[CMD] Execution ERROR: {e}")
+
+    def poll_commands(self):
+        """Poll VPS for pending commands."""
+        try:
+            r = requests.get(
+                f"{self.vps_url}/ingest/commands",
+                headers=self.headers,
+                timeout=5
+            )
+            if r.status_code == 200:
+                data = r.json()
+                commands = data.get("commands", [])
+                for cmd in commands:
+                    self.execute_command(cmd)
+            elif r.status_code != 404: # Ignore 404/405 if endpoint not ready
+                 print(f"[CMD] Poll status: {r.status_code}")
+                 
+        except requests.exceptions.RequestException as e:
+            # Don't spam logs on connection error
+            pass
     
     def run(self):
         """Main connector loop."""
@@ -140,14 +203,22 @@ class Connector:
             while self.running:
                 time.sleep(30)
                 self.send_heartbeat()
+
+        # Command polling loop
+        def command_loop():
+            while self.running:
+                self.poll_commands()
+                time.sleep(1.0)
         
         t1 = threading.Thread(target=tail_telemetry, daemon=True, name="telemetry-tail")
         t2 = threading.Thread(target=tail_events, daemon=True, name="events-tail")
         t3 = threading.Thread(target=heartbeat_loop, daemon=True, name="heartbeat")
+        t4 = threading.Thread(target=command_loop, daemon=True, name="command-poll")
         
         t1.start()
         t2.start()
         t3.start()
+        t4.start()
         
         print("[CONNECTOR] Running... Press Ctrl+C to stop")
         try:

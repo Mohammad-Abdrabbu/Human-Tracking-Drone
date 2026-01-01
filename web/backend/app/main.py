@@ -147,6 +147,14 @@ class UserResponse(BaseModel):
     last_login_at: str | None
 
 
+# ---------------------------------------------------------------------------
+# Command Queue (In-Memory)
+# ---------------------------------------------------------------------------
+# Stores commands to be picked up by the simulation connector.
+# Format: {"id": str, "cmd": str, "args": dict, "ts": str}
+COMMAND_QUEUE = []
+
+
 app = FastAPI(
     title="Security-Aware Human Tracking Drone Backend",
     version="0.4.0",
@@ -865,6 +873,18 @@ def _publish_ros_cmd(cmd: str, user_email: str, req_id: str) -> bool:
     except Exception as e:
         print(f"[CMD] ros2 topic pub error: {e}")
         return False
+    finally:
+        # ALWAYS Queue command for local connector (Cloud mode support)
+        # Even if local ros2 fails (which it will on Render), we queue it.
+        COMMAND_QUEUE.append({
+            "req_id": req_id,
+            "cmd": cmd,
+            "user": user_email,
+            "ts": now
+        })
+        # Keep queue size manageable
+        if len(COMMAND_QUEUE) > 50:
+            COMMAND_QUEUE.pop(0)
 
 
 def _command_response(cmd: str, user_email: str) -> dict:
@@ -973,6 +993,18 @@ async def cmd_select_target(
     except Exception as e:
         print(f"[SELECT] ros2 topic pub error: {e}")
         ros_success = False
+    
+    # ALWAYS Queue select command for local connector
+    COMMAND_QUEUE.append({
+        "req_id": str(uuid.uuid4()),
+        "cmd": "select_target",
+        "data": {"target_id": target_id},
+        "user": user_email,
+        "ts": now
+    })
+    # Keep queue size manageable
+    if len(COMMAND_QUEUE) > 50:
+        COMMAND_QUEUE.pop(0)
     
     status = "selected" if ros_success else "ros_failed"
     print(f"[SELECT] Target {target_id} by {user_email} -> {status}")
@@ -1103,6 +1135,22 @@ async def ingest_telemetry(payload: IngestTelemetry, request: Request):
         f.write(json.dumps(telemetry) + "\n")
     
     return {"status": "ok", "received_at": now}
+
+
+@app.get("/ingest/commands", tags=["ingest"])
+async def ingest_get_commands(request: Request):
+    """
+    Simulation connector polls this to get pending commands.
+    Returns list of commands and clears the queue (FIFO).
+    """
+    if not verify_ingest_request(request):
+        raise HTTPException(status_code=403, detail="Ingest not allowed from this source")
+    
+    # Return all pending commands and clear queue
+    commands = list(COMMAND_QUEUE)
+    COMMAND_QUEUE.clear()
+    
+    return {"status": "ok", "commands": commands}
 
 
 # Optional: allow `python -m app.main` as dev shortcut
