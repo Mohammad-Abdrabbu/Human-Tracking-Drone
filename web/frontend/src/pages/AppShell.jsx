@@ -395,22 +395,51 @@ function AppShell() {
               {APP_MODE === 'cloud' && (
                 <button
                   onClick={() => {
-                    const url = prompt('Enter your ngrok video URL (e.g. https://xxxx.ngrok-free.app/video):', VIDEO_URL);
-                    if (url !== null) setVideoOverride(url);
+                    let url = prompt('Enter your ngrok video URL for Render:', VIDEO_URL || '');
+                    if (url) {
+                      // Auto-append /video if missing and it's an ngrok url
+                      if (url.includes('ngrok') && !url.endsWith('/video')) {
+                        url = url.replace(/\/$/, '') + '/video';
+                      }
+                      setVideoOverride(url);
+                    }
                   }}
                   className="mt-4 btn btn--sm btn--primary"
                 >
                   {VIDEO_URL ? 'Change Stream URL' : 'Set Stream URL'}
                 </button>
               )}
+
+              {/* Ngrok Limitations Message */}
+              {APP_MODE === 'cloud' && VIDEO_URL && (
+                <div className="mt-4 flex flex-col items-center gap-2 p-3 bg-slate-800/80 rounded-lg border border-yellow-500/30">
+                  <p className="text-[10px] text-yellow-200 text-center max-w-[200px]">
+                    Ngrok Free cannot be embedded properly unless you upgrade.
+                  </p>
+                  <a
+                    href={VIDEO_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn--xs btn--secondary w-full justify-center"
+                  >
+                    Open Video in New Window ↗
+                  </a>
+                </div>
+              )}
+
             </div>
 
             {/* Overlay button for Cloud mode to change existing URL */}
             {APP_MODE === 'cloud' && VIDEO_URL && (
               <button
                 onClick={() => {
-                  const url = prompt('Update ngrok video URL:', VIDEO_URL);
-                  if (url !== null) setVideoOverride(url);
+                  let url = prompt('Update ngrok video URL:', VIDEO_URL);
+                  if (url) {
+                    if (url.includes('ngrok') && !url.endsWith('/video')) {
+                      url = url.replace(/\/$/, '') + '/video';
+                    }
+                    setVideoOverride(url);
+                  }
                 }}
                 className="absolute top-2 right-2 btn btn--sm btn--secondary opacity-50 hover:opacity-100"
               >
