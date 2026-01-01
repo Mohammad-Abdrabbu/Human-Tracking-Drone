@@ -4,7 +4,7 @@ SQLAlchemy models for SAHTD backend.
 Defines the User model for authentication and user management.
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text, func
+from sqlalchemy import Column, Integer, BigInteger, String, Boolean, DateTime, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from .db import Base
@@ -15,7 +15,7 @@ class User(Base):
     User model for authentication.
     
     Attributes:
-        id: Primary key
+        id: Primary key (SERIAL on Postgres, AUTOINCREMENT on SQLite)
         email: Unique email address (used as username)
         password_hash: bcrypt hashed password
         role: User role ('operator' or 'viewer')
@@ -28,7 +28,8 @@ class User(Base):
     """
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, index=True)
+    # Primary key: SERIAL on Postgres, AUTOINCREMENT on SQLite
+    id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), nullable=False, default="viewer")
@@ -73,27 +74,29 @@ class Event(Base):
     Uses JSONB on PostgreSQL for efficient querying, falls back to JSON on SQLite.
     
     Attributes:
-        id: Primary key
+        id: Primary key (SERIAL on Postgres, AUTOINCREMENT on SQLite)
         ts: Event timestamp (from original event)
         event_type: Event type (e.g., LOGIN_SUCCESS, GUARD_VIOLATION)
         severity: Optional severity level (INFO, WARN, ERROR, CRITICAL)
         source: Event source (e.g., auth, geo_guard, web-ui)
         target_id: Optional target/track ID
         session_id: Optional session identifier
-        payload: Full event data as JSON
+        payload: Full event data as JSONB (Postgres) / JSON (SQLite)
         created_at: Database insertion timestamp
     """
     __tablename__ = "events"
 
-    id = Column(Integer, primary_key=True, index=True)
+    # Primary key: SERIAL on Postgres, AUTOINCREMENT on SQLite
+    # No index=True needed - primary key is automatically indexed
+    id = Column(Integer, primary_key=True, autoincrement=True)
     ts = Column(DateTime(timezone=True), nullable=False, index=True)
     event_type = Column(String(100), nullable=False, index=True)
     severity = Column(String(20), nullable=True)
     source = Column(String(100), nullable=True, index=True)
     target_id = Column(Integer, nullable=True)
     session_id = Column(String(100), nullable=True)
-    # Use JSONB on PostgreSQL, JSON on SQLite
-    payload = Column(JSON, nullable=True)
+    # JSONB on PostgreSQL for indexing/querying, JSON fallback on SQLite
+    payload = Column(JSONB().with_variant(JSON, "sqlite"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     def __repr__(self):
