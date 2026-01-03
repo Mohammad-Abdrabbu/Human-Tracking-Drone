@@ -1,0 +1,23 @@
+[Unit]
+Description=SAHTD Fit Expo - PX4 & Gazebo
+PartOf=fitexpo.target
+After=network.target
+
+[Service]
+Type=simple
+User=ramadan
+WorkingDirectory=/home/ramadan/sahtd
+Environment=HOME=/home/ramadan
+Environment=SAHTD_ROOT=/home/ramadan/sahtd
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/run/user/1000/gdm/Xauthority
+Environment=QT_QPA_PLATFORM=xcb
+Environment=ACCESSIBILITY_ENABLED=1
+# Load config if present to set env vars (like HEADLESS)
+EnvironmentFile=-/tmp/sahtd_fitexpo_config
+ExecStart=/home/ramadan/sahtd/scripts/fitexpo/start_px4_fitexpo.sh
+Restart=no
+KillMode=control-group
+
+[Install]
+WantedBy=fitexpo.target

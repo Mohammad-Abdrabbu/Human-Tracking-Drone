@@ -1188,10 +1188,99 @@ async def ingest_get_commands(request: Request):
         raise HTTPException(status_code=403, detail="Ingest not allowed from this source")
     
     # Return all pending commands and clear queue
-    commands = list(COMMAND_QUEUE)
-    COMMAND_QUEUE.clear()
-    
     return {"status": "ok", "commands": commands}
+
+
+# ---------------------------------------------------------------------------
+# Demo Orchestration (Fit Expo)
+# ---------------------------------------------------------------------------
+
+@app.post("/demo/fitexpo/start", tags=["demo"])
+async def demo_fitexpo_start(
+    extras: int = 0,
+    headless: bool = False,
+    user: dict = Depends(require_role("operator")),
+):
+    """Start the Fit Expo demo systemd services."""
+    msg = f"Starting Fit Expo Demo (extras={extras}, headless={headless})"
+    print(f"[DEMO] {msg}")
+    
+    # Log event
+    append_event({
+        "ts": iso_timestamp_z(),
+        "type": "DEMO_START",
+        "message": msg,
+        "source": "web-ui",
+        "user": user["sub"],
+        "params": {"extras": extras, "headless": headless}
+    })
+    
+    # 1. Write config
+    try:
+        config_content = f"EXTRAS={extras}\nHEADLESS={1 if headless else 0}\n"
+        with open("/tmp/sahtd_fitexpo_config", "w") as f:
+            f.write(config_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write config: {e}")
+
+    # 2. Restart target via sudo systemctl
+    # Requires passwordless sudo for 'backend' user on /bin/systemctl
+    try:
+        # Stop first
+        subprocess.run(["sudo", "systemctl", "stop", "fitexpo.target"], check=True)
+        # Start
+        subprocess.run(["sudo", "systemctl", "start", "fitexpo.target"], check=True)
+        return {"status": "started", "message": "Demo services starting..."}
+    except subprocess.CalledProcessError as e:
+        print(f"[DEMO] Failed to start services: {e}")
+        raise HTTPException(status_code=500, detail="Failed to start demo services (sudo rights?)")
+
+
+@app.post("/demo/fitexpo/stop", tags=["demo"])
+async def demo_fitexpo_stop(
+    user: dict = Depends(require_role("operator")),
+):
+    """Stop the Fit Expo demo services."""
+    print("[DEMO] Stopping Fit Expo Demo")
+    
+    append_event({
+        "ts": iso_timestamp_z(),
+        "type": "DEMO_STOP",
+        "message": "Stopping Fit Expo Demo",
+        "source": "web-ui",
+        "user": user["sub"],
+    })
+    
+    try:
+        subprocess.run(["sudo", "systemctl", "stop", "fitexpo.target"], check=True)
+        return {"status": "stopped", "message": "Demo services stopped"}
+    except subprocess.CalledProcessError:
+        raise HTTPException(status_code=500, detail="Failed to stop services")
+
+
+@app.get("/demo/fitexpo/status", tags=["demo"])
+async def demo_fitexpo_status(
+    user: dict = Depends(require_role("operator")),
+):
+    """Get status of Fit Expo services."""
+    services = ["fitexpo.target", "fitexpo-px4.service", "fitexpo-ros.service", "fitexpo-extras.service"]
+    status_map = {}
+    
+    for svc in services:
+        res = subprocess.run(["systemctl", "is-active", svc], capture_output=True, text=True)
+        status_map[svc] = res.stdout.strip()
+        
+    # Simple aggregation
+    overall = "stopped"
+    if status_map["fitexpo.target"] == "active":
+        overall = "running"
+    elif status_map["fitexpo-px4.service"] == "active":
+        overall = "starting"
+        
+    return {
+        "status": overall,
+        "details": status_map
+    }
 
 
 # Optional: allow `python -m app.main` as dev shortcut

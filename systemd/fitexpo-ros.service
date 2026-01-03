@@ -1,0 +1,18 @@
+[Unit]
+Description=SAHTD Fit Expo - ROS Nodes
+PartOf=fitexpo.target
+After=fitexpo-px4.service
+Wants=fitexpo-px4.service
+
+[Service]
+Type=simple
+User=ramadan
+WorkingDirectory=/home/ramadan/sahtd
+Environment=HOME=/home/ramadan
+Environment=SAHTD_ROOT=/home/ramadan/sahtd
+ExecStart=/home/ramadan/sahtd/scripts/fitexpo/start_ros_fitexpo.sh
+Restart=no
+RestartSec=5
+
+[Install]
+WantedBy=fitexpo.target

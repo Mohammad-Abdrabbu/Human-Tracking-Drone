@@ -1,0 +1,6 @@
+[Unit]
+Description=SAHTD Fit Expo Demo Target
+Wants=fitexpo-px4.service fitexpo-ros.service fitexpo-orchestrator.service
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,20 @@
+[Unit]
+Description=SAHTD Fit Expo - Orchestrator (Script & Bridges)
+PartOf=fitexpo.target
+After=fitexpo-ros.service
+Wants=fitexpo-ros.service
+
+[Service]
+Type=simple
+User=ramadan
+WorkingDirectory=/home/ramadan/sahtd
+Environment=HOME=/home/ramadan
+Environment=SAHTD_ROOT=/home/ramadan/sahtd
+# Orchestrator script that stays alive housing the bridges
+ExecStart=/home/ramadan/sahtd/scripts/fitexpo/fitexpo_orchestrator.sh
+# Don't remain after exit, if it exits it's done or failed.
+# RemainAfterExit=yes - REMOVED because Type=simple implies running process
+Restart=no
+
+[Install]
+WantedBy=fitexpo.target

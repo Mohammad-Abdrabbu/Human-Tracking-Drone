@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage.jsx';
 import AppShell from './pages/AppShell.jsx';
 import TelemetryPage from './pages/TelemetryPage.jsx';
 import MapPage from './pages/MapPage.jsx';
+import DemoPage from './pages/DemoPage.jsx';
 import { isAuthenticated } from './auth';
 
 function RequireAuth({ children }) {
@@ -45,6 +46,14 @@ function App() {
         element={
           <RequireAuth>
             <MapPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/app/demos"
+        element={
+          <RequireAuth>
+            <DemoPage />
           </RequireAuth>
         }
       />

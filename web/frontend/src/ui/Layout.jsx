@@ -19,6 +19,7 @@ function Layout({ children, currentPage }) {
         { path: '/app', label: 'Control', icon: '⚡' },
         { path: '/app/telemetry', label: 'Telemetry', icon: '📊' },
         { path: '/app/map', label: 'Map', icon: '🗺️' },
+        { path: '/app/demos', label: 'Demos', icon: '🚀' },
     ];
 
     return (

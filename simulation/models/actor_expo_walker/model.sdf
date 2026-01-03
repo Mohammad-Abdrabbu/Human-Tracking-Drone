@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <actor name="actor_expo_walker">
+    <pose>0 0 1.0 0 0 0</pose>
+    <skin>
+      <filename>models/actor_walk_slow/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+    </skin>
+    <animation name="walk">
+      <filename>models/actor_walk_slow/meshes/walk.dae</filename>
+      <scale>1.0</scale>
+      <interpolate_x>true</interpolate_x>
+    </animation>
+    <script>
+      <loop>true</loop>
+      <delay_start>5.0</delay_start>
+      <auto_start>true</auto_start>
+      <trajectory id="0" type="walking">
+        <!-- Start at booth entrance -->
+        <waypoint>
+          <time>0.0</time>
+          <pose>2 3 0.02 0 0 -1.57</pose>
+        </waypoint>
+        <!-- Walk to booth 1 -->
+        <waypoint>
+          <time>10.0</time>
+          <pose>2 -2 0.02 0 0 -1.57</pose>
+        </waypoint>
+        <!-- Walk to booth 2 (diagonal) -->
+        <waypoint>
+          <time>25.0</time>
+          <pose>8 5 0.02 0 0 0.7</pose>
+        </waypoint>
+        <!-- Walk to booth 3 -->
+        <waypoint>
+          <time>40.0</time>
+          <pose>15 0 0.02 0 0 -0.5</pose>
+        </waypoint>
+        <!-- Return loop -->
+         <waypoint>
+          <time>60.0</time>
+          <pose>2 3 0.02 0 0 3.14</pose>
+        </waypoint>
+      </trajectory>
+    </script>
+  </actor>
+</sdf>
