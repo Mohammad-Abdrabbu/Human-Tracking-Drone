@@ -139,6 +139,17 @@ function HomePage() {
 
     return (
         <div className="home-page" ref={component}>
+            {/* Floating Vote Button */}
+            <a
+                href="https://padlet.com/izzmatar/fit-expo-2025-1-cof44zd77fup1mml/wish/yEPVZkn5pxvRQb0Y"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vote-bubble"
+            >
+                <span className="vote-icon">🗳️</span>
+                <span className="vote-text">Vote for Us!</span>
+            </a>
+
             {/* Hero Section */}
             <section className="hero">
                 <div className="hero-background">
@@ -169,9 +180,8 @@ function HomePage() {
                     </h1>
 
                     <p className="hero-description">
-                        An autonomous UAV system that detects, tracks, and safely follows designated persons
-                        while issuing context-aware alerts. Built with ROS 2, computer vision, and
-                        real-time web monitoring.
+                        An autonomous UAV that detects, tracks, and follows designated persons
+                        with geo-fencing safety and real-time monitoring.
                     </p>
 
                     <div className="hero-actions">
@@ -186,17 +196,40 @@ function HomePage() {
                 </div>
 
                 <div className="hero-visual">
-                    <div className="hero-drone-container">
-                        <div className="hero-drone">
-                            <div className="hero-drone-logo-wrapper">
-                                <img src="/Drone.svg" alt="SAHTD Drone" className="hero-drone-logo" />
-                            </div>
-                            <div className="hero-drone-pulse" />
+                    <div className="hero-tracking-scene">
+                        {/* Drone at top */}
+                        <div className="scene-drone">
+                            <img src="/Drone.svg" alt="SAHTD Drone" className="scene-drone-img" />
+                            <div className="drone-scan-pulse" />
                         </div>
-                        <div className="hero-tracking-lines">
-                            <div className="hero-tracking-line" style={{ '--delay': '0s' }} />
-                            <div className="hero-tracking-line" style={{ '--delay': '0.5s' }} />
-                            <div className="hero-tracking-line" style={{ '--delay': '1s' }} />
+
+                        {/* Tracking beams */}
+                        <div className="tracking-beams">
+                            <div className="beam beam-1" />
+                            <div className="beam beam-2" />
+                            <div className="beam beam-3" />
+                        </div>
+
+                        {/* Humans being tracked */}
+                        <div className="scene-humans">
+                            <div className="human-target human-1">
+                                <span className="target-id-label">ID: 1</span>
+                                <div className="bounding-box">
+                                    <div className="human-icon">👤</div>
+                                </div>
+                            </div>
+                            <div className="human-target human-2">
+                                <span className="target-id-label active">ID: 2 • LOCKED</span>
+                                <div className="bounding-box active">
+                                    <div className="human-icon">👤</div>
+                                </div>
+                            </div>
+                            <div className="human-target human-3">
+                                <span className="target-id-label">ID: 3</span>
+                                <div className="bounding-box">
+                                    <div className="human-icon">👤</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

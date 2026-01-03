@@ -22,19 +22,19 @@
 
 /* Hero Drone Logo Wrapper */
 .hero-drone-logo-wrapper {
-    width: 200px;
-    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     z-index: 2;
+    background: transparent;
 }
 
 .hero-drone-logo {
-    width: 100%;
+    width: 120px;
     height: auto;
-    /* Turn drone SVG white */
+    /* Blue glow on original logo color */
+    filter: drop-shadow(0 0 30px rgba(59, 130, 246, 0.8)) drop-shadow(0 0 15px rgba(59, 130, 246, 0.6));
 }
 
 /* Remove old text icons */

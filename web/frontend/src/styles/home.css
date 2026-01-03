@@ -10,6 +10,79 @@
   color: var(--text-primary);
 }
 
+/* ===== Floating Vote Bubble ===== */
+.vote-bubble {
+  position: fixed;
+  bottom: var(--space-2xl);
+  right: var(--space-2xl);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--brand-gradient);
+  color: white;
+  text-decoration: none;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-bold);
+  font-size: var(--text-sm);
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  transition: all var(--transition-normal);
+  animation: vote-pulse 2s ease-in-out infinite;
+}
+
+.vote-bubble:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.6);
+}
+
+.vote-icon {
+  font-size: var(--text-xl);
+  animation: vote-bounce 2s ease-in-out infinite;
+}
+
+.vote-text {
+  white-space: nowrap;
+}
+
+@keyframes vote-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 8px 24px rgba(59, 130, 246, 0.7), 0 0 40px rgba(59, 130, 246, 0.5);
+  }
+}
+
+@keyframes vote-bounce {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@media (max-width: 768px) {
+  .vote-bubble {
+    bottom: var(--space-lg);
+    right: var(--space-lg);
+    padding: var(--space-sm) var(--space-md);
+    font-size: var(--text-xs);
+  }
+
+  .vote-icon {
+    font-size: var(--text-lg);
+  }
+}
+
+
 /* ===== Home Navigation ===== */
 .home-nav {
   position: fixed;
@@ -233,12 +306,311 @@
   transform: translateX(4px);
 }
 
-/* Hero Visual */
+/* Hero Visual - Tracking Scene */
 .hero-visual {
   position: relative;
   z-index: 1;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
+.hero-tracking-scene {
+  position: relative;
+  width: 100%;
+  height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-2xl);
+}
+
+/* Drone at top */
+.scene-drone {
+  position: relative;
+  animation: hover-float 4s ease-in-out infinite;
+}
+
+.scene-drone-img {
+  width: 150px;
+  height: auto;
+  filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6));
+}
+
+.drone-scan-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 150px;
+  height: 150px;
+  border: 2px solid var(--brand-primary);
+  border-radius: 50%;
+  opacity: 0;
+  animation: scan-pulse 2s ease-out infinite;
+}
+
+@keyframes hover-float {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes scan-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* Tracking beams */
+.tracking-beams {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  height: 160px;
+  pointer-events: none;
+}
+
+.beam {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(to bottom,
+      rgba(59, 130, 246, 0.6) 0%,
+      rgba(59, 130, 246, 0.3) 50%,
+      transparent 100%);
+  transform-origin: top center;
+  animation: beam-scan 3s ease-in-out infinite;
+}
+
+.beam-1 {
+  left: 35%;
+  animation-delay: 0s;
+}
+
+.beam-2 {
+  left: 50%;
+  animation-delay: 0.3s;
+}
+
+.beam-3 {
+  left: 65%;
+  animation-delay: 0.6s;
+}
+
+@keyframes beam-scan {
+
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Humans being tracked */
+.scene-humans {
+  display: flex;
+  gap: var(--space-2xl);
+  justify-content: center;
+  align-items: flex-end;
+  margin-top: auto;
+}
+
+.human-target {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  animation: target-appear 0.8s ease-out backwards;
+}
+
+.human-target.human-1 {
+  animation-delay: 0.2s;
+}
+
+.human-target.human-2 {
+  animation-delay: 0.4s;
+}
+
+.human-target.human-3 {
+  animation-delay: 0.6s;
+}
+
+@keyframes target-appear {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ID Label above person */
+.target-id-label {
+  padding: 2px var(--space-sm);
+  background: rgba(17, 24, 39, 0.9);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  color: var(--text-muted);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.target-id-label.active {
+  border-color: var(--brand-primary);
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--brand-primary);
+  animation: label-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes label-pulse {
+
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+  }
+}
+
+/* Bounding Box (CV-style detection box) */
+.bounding-box {
+  position: relative;
+  padding: var(--space-md);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  background: rgba(17, 24, 39, 0.2);
+  transition: all var(--transition-fast);
+}
+
+.bounding-box::before,
+.bounding-box::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+}
+
+/* Corner markers */
+.bounding-box::before {
+  top: -2px;
+  left: -2px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.bounding-box::after {
+  bottom: -2px;
+  right: -2px;
+  border-left: none;
+  border-top: none;
+}
+
+.bounding-box.active {
+  border-color: var(--brand-primary);
+  background: rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.3);
+}
+
+.bounding-box.active::before,
+.bounding-box.active::after {
+  border-color: var(--brand-primary);
+}
+
+.human-icon {
+  font-size: 3rem;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+  animation: human-idle 3s ease-in-out infinite;
+}
+
+@keyframes human-idle {
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+/* Old target-box styles for backward compatibility */
+.target-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(17, 24, 39, 0.8);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  font-family: var(--font-mono);
+  backdrop-filter: blur(8px);
+  transition: all var(--transition-fast);
+}
+
+.target-box.active {
+  border-color: var(--brand-primary);
+  background: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+}
+
+.target-id {
+  color: var(--text-muted);
+  font-weight: var(--font-medium);
+}
+
+.target-status {
+  color: var(--brand-primary);
+  font-weight: var(--font-bold);
+  font-size: var(--text-2xs);
+  animation: status-blink 1.5s ease-in-out infinite;
+}
+
+@keyframes status-blink {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Old hero visual styles - keep for compatibility */
 .hero-drone-container {
   position: relative;
   width: 200px;

@@ -9,7 +9,7 @@ function LoginPage() {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('operator@uop.edu.jo');
-  const [password, setPassword] = useState('operator123');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
