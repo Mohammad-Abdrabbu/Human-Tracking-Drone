@@ -50,7 +50,7 @@ print_ready() {
 print_usage() {
     cat << EOF
 Usage:
-  demo_committee.sh up [--headless on|off] [--guard on|off] [--events on|off] [--video on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
+  demo_committee.sh up [--headless on|off] [--guard on|off] [--markers on|off] [--path-markers on|off] [--events on|off] [--video on|off] [--rqt on|off] [--spawn] [--extras <n>] [--autoselect] [--policy best|first] [--world <name>] [--timeout <sec>]
   demo_committee.sh spawn [--world <name>] [--actor_sdf <path>]
   demo_committee.sh select [--policy best|first] [--timeout <sec>]
   demo_committee.sh status
@@ -67,8 +67,10 @@ Options for 'up':
   --headless on|off    Run Gazebo without GUI (default: off)
   --guard on|off       Enable or disable geofence (default: on)
   --markers on|off     Spawn fence markers in Gazebo (default: on)
+  --path-markers on|off  Spawn human path markers in Gazebo (default: off)
   --events on|off      Enable event logging (default: on)
   --video on|off       Enable video bridge for web dashboard (default: off)
+  --rqt on|off         Enable RQt image viewer (default: off)
   --spawn              Spawn walking actor after stack is ready
   --extras <n>         Spawn <n> extra standing humans (0-3, default: 0)
   --autoselect         Auto-select target after spawn
@@ -87,7 +89,7 @@ Options for 'select':
 Examples:
   demo_committee.sh up --guard on --events on --spawn --autoselect
   demo_committee.sh up --guard on --spawn --extras 2 --autoselect
-  demo_committee.sh up --guard on --markers on --events on --video on --spawn --extras 3 --autoselect --policy best
+  demo_committee.sh up --guard on --markers on --path-markers on --events on --video on --spawn --extras 3 --autoselect --policy best
   demo_committee.sh status
   demo_committee.sh reset
 EOF
@@ -203,8 +205,10 @@ cmd_up() {
     local headless="off"
     local guard="on"
     local markers="on"
+    local path_markers="off"
     local events="on"
     local video="off"
+    local rqt="off"
     local spawn=false
     local extras=0
     local autoselect=false
@@ -218,8 +222,10 @@ cmd_up() {
             --headless) headless="$2"; shift 2 ;;
             --guard) guard="$2"; shift 2 ;;
             --markers) markers="$2"; shift 2 ;;
+            --path-markers) path_markers="$2"; shift 2 ;;
             --events) events="$2"; shift 2 ;;
             --video) video="$2"; shift 2 ;;
+            --rqt) rqt="$2"; shift 2 ;;
             --spawn) spawn=true; shift ;;
             --extras) extras="$2"; shift 2 ;;
             --autoselect) autoselect=true; shift ;;
@@ -303,6 +309,15 @@ cmd_up() {
             echo -e "${YELLOW}  ⚠ Could not spawn markers (continuing anyway)${NC}"
     fi
     
+    # Step 4a: Spawn human path markers
+    if [ "$path_markers" = "on" ]; then
+        echo ""
+        echo -e "${YELLOW}Spawning human path markers...${NC}"
+        python3 "$SCRIPT_DIR/spawn_human_path_markers.py" --world "$world" --actor-sdf "$DEFAULT_ACTOR_SDF" && \
+            echo -e "${GREEN}  ✓ Path markers visible${NC}" || \
+            echo -e "${YELLOW}  ⚠ Could not spawn path markers (continuing anyway)${NC}"
+    fi
+    
     # Step 4b: Start event logger
     if [ "$events" = "on" ]; then
         echo ""
@@ -339,6 +354,19 @@ cmd_up() {
             ros2 run sahtd_web_bridge video_bridge_node &>/dev/null &
             sleep 1
             echo -e "${GREEN}  ✓ Video bridge started (http://localhost:8001/video)${NC}"
+        fi
+    fi
+
+    # Step 4e: Start RQt Image Viewer (optional)
+    if [ "$rqt" = "on" ]; then
+        echo ""
+        echo -e "${YELLOW}Starting RQt image viewer...${NC}"
+        if ros2 node list 2>/dev/null | grep -q "rqt_image_view"; then
+            echo -e "${GREEN}  ✓ RQt viewer already running${NC}"
+        else
+            ros2 run rqt_image_view rqt_image_view /perception/debug_image_tracks &>/dev/null &
+            sleep 1
+            echo -e "${GREEN}  ✓ RQt viewer started${NC}"
         fi
     fi
     
@@ -513,6 +541,7 @@ cmd_reset() {
     pkill -f "telemetry_bridge_node" 2>/dev/null || true
     pkill -f "event_logger_node" 2>/dev/null || true
     pkill -f "video_bridge_node" 2>/dev/null || true
+    pkill -f "rqt_image_view" 2>/dev/null || true
     # Free video bridge port in case of orphaned process
     lsof -ti :8001 | xargs -r kill -9 2>/dev/null || true
     echo -e "${GREEN}  ✓ Background nodes stopped${NC}"

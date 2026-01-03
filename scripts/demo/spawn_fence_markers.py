@@ -222,8 +222,8 @@ Examples:
                         help='Cylinder height in meters (default: 0.20)')
     parser.add_argument('--prefix', default='fence_marker',
                         help='Model name prefix (default: fence_marker)')
-    parser.add_argument('--edges', choices=['on', 'off'], default='off',
-                        help='Draw edges between vertices (default: off)')
+    parser.add_argument('--edges', choices=['on', 'off'], default='on',
+                        help='Draw edges between vertices (default: on)')
     parser.add_argument('--dry-run', action='store_true',
                         help='Print vertices and planned markers without spawning')
     
@@ -321,7 +321,7 @@ Examples:
                 name=name,
                 x1=x1, y1=y1, x2=x2, y2=y2,
                 z=args.z,
-                thickness=0.03,
+                thickness=0.10,
                 color_rgba=(1.0, 0.5, 0.0, 0.8)  # Orange
             )
             

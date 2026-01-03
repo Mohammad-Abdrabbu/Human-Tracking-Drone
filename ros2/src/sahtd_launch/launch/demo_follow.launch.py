@@ -219,20 +219,7 @@ def generate_launch_description():
         ],
     )
 
-    # === rqt_image_view to display target_viz_node output ===
-    # Delayed start to ensure target_viz_node is publishing
-    image_viewer_node = TimerAction(
-        period=6.0,  # 6-second delay
-        actions=[
-            Node(
-                package='rqt_image_view',
-                executable='rqt_image_view',
-                name='target_image_viewer',
-                output='screen',
-                arguments=['/perception/debug_image_tracks'],
-            )
-        ]
-    )
+
 
     return LaunchDescription([
         use_sim_time_arg,
@@ -251,7 +238,6 @@ def generate_launch_description():
         actor_pose_selector_node,
         target_guard_node,
         target_viz_node,
-        image_viewer_node,
     ])
 
 

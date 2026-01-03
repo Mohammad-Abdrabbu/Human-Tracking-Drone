@@ -127,3 +127,5 @@ visualization-msgs==4.9.0
 watchfiles==1.1.1
 websockets==15.0.1
 xacro==2.1.1
+email-validator>=2.0.0
+psycopg2-binary>=2.9.0
