@@ -4,6 +4,8 @@
 
 /* Import design tokens */
 @import './styles/design-tokens.css';
+@import './styles/home.css';
+@import './styles/logo.css';
 
 /* ===== Google Fonts ===== */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -686,6 +688,24 @@ body {
 
 .login-submit {
   margin-top: var(--space-sm);
+}
+
+.login-back {
+  text-align: center;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.login-back-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: var(--text-sm);
+  transition: color var(--transition-fast);
+}
+
+.login-back-link:hover {
+  color: var(--brand-primary-light);
 }
 
 /* ===========================================
@@ -1755,6 +1775,7 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
 /* ===========================================
    ENVIRONMENT TOGGLE STYLES
    =========================================== */
@@ -1809,4 +1830,197 @@ body {
   background: var(--bg-elevated);
   border-color: var(--border-strong);
   transform: translateY(-1px);
+}
+
+/* ===========================================
+   EXPO POLISH - ENHANCED ANIMATIONS
+   =========================================== */
+
+/* Card entrance animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Status section cards - entrance animation */
+.status-main-card,
+.connection-card {
+  animation: fadeInUp 0.4s ease-out both;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.status-main-card:hover,
+.connection-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.connection-card:nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.connection-card:nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.connection-card:nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+/* Controls section - enhanced button effects */
+.controls-section {
+  animation: fadeInUp 0.4s ease-out 0.15s both;
+}
+
+.control-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.control-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.control-btn:hover::after {
+  transform: translateX(100%);
+}
+
+/* Target section - enhanced styling */
+.target-section {
+  animation: fadeInUp 0.4s ease-out 0.2s both;
+}
+
+/* Enhanced video placeholder styling */
+.target-video-placeholder {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+  min-height: 200px;
+}
+
+/* Alerts section - enhanced */
+.alerts-section {
+  animation: fadeInUp 0.4s ease-out 0.25s both;
+}
+
+/* Alert item entrance */
+.alert-item {
+  animation: fadeIn 0.3s ease-out;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.alert-item:hover {
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Enhanced alert badge pulse */
+.alert-badge {
+  position: relative;
+}
+
+.alert-badge--warning::before,
+.alert-badge--error::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  background: inherit;
+  opacity: 0;
+  animation: badge-pulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes badge-pulse {
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.3;
+    transform: scale(1.1);
+  }
+}
+
+/* Status glow effects */
+.status-normal .status-primary {
+  text-shadow: 0 0 20px rgba(34, 197, 94, 0.4);
+}
+
+.status-hold .status-primary {
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.status-violation .status-primary {
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Telemetry page enhancements */
+.telemetry-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.telemetry-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Map page enhancements */
+.map-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.map-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.map-canvas-container {
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--border-subtle);
+}
+
+.map-canvas {
+  transition: filter 0.2s ease;
+}
+
+.map-canvas-container:hover .map-canvas {
+  filter: brightness(1.05);
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
 }

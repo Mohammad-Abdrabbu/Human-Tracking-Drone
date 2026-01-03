@@ -1,0 +1,45 @@
+/* Logo Sizing and Styling */
+
+/* Home Nav Logo */
+.home-nav-logo-img {
+    height: 32px;
+    width: auto;
+    /* Make logo white if it's dark to fix blending */
+}
+
+/* Layout Nav Logo */
+.layout-logo-img {
+    height: 28px;
+    width: auto;
+    /* Make logo white if it's dark */
+}
+
+@media (min-width: 768px) {
+    .layout-logo-img {
+        height: 32px;
+    }
+}
+
+/* Hero Drone Logo Wrapper */
+.hero-drone-logo-wrapper {
+    width: 200px;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+}
+
+.hero-drone-logo {
+    width: 100%;
+    height: auto;
+    /* Turn drone SVG white */
+}
+
+/* Remove old text icons */
+.home-nav-logo,
+.layout-logo,
+.hero-drone-icon {
+    display: none;
+}

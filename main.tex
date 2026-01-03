@@ -1,0 +1,2334 @@
+\documentclass[12pt,a4paper]{report}
+
+% --- Encoding & language ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+% --- Page layout & spacing ---
+\usepackage[left=1.5in,right=1in,top=1in,bottom=1in]{geometry}
+\usepackage{setspace}
+\doublespacing
+\usepackage[export]{adjustbox}
+
+% --- Fonts (Times-like with proper math) ---
+\usepackage{newtxtext}
+\usepackage{newtxmath}
+
+% --- Headers/footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{University of Petra}
+\rhead{Security-Aware Human Tracking Drone}
+\fancyfoot[C]{\thepage}        % center page number on normal pages
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+\fancypagestyle{plain}{
+  \fancyhf{}
+  \lhead{University of Petra}
+  \rhead{Security-Aware Human Tracking Drone}
+  \fancyfoot[C]{\thepage}      % center page number on 'plain' pages
+  \renewcommand{\headrulewidth}{0.4pt}
+  \renewcommand{\footrulewidth}{0pt}
+}
+
+% --- Graphics, tables, colors ---
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage[table]{xcolor} 
+\usepackage[subsection]{placeins}
+\usepackage{float}
+
+\usepackage{array}
+\usepackage{pdflscape}   % defines the landscape environment
+\usepackage{ragged2e}
+\usepackage{xcolor}
+
+% --- Column types ---
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+% --- Center longtable ---
+\newcommand{\LTcenter}{\setlength{\LTleft}{0pt}\setlength{\LTright}{0pt}}
+
+% --- Status macros (if used in test cases) ---
+\newcommand{\statusPass}{\textcolor{green!45!black}{\textbf{Pass}}}
+\newcommand{\statusFail}{\textcolor{red!70!black}{\textbf{Fail}}}
+
+% --- Lists ---
+\usepackage{enumitem}
+
+% --- Links (keep near the end) ---
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=black,citecolor=black,urlcolor=black}
+
+% --- Captions ---
+\usepackage{caption}
+\captionsetup{font=small,labelfont=bf}
+
+% --- Acronyms & references ---
+\usepackage{acronym}
+\usepackage{natbib}
+\bibliographystyle{agsm}
+
+\usepackage{titlesec}
+
+% Chapter heading: "1. Project Initiating" (no "Chapter")
+\titleformat{\chapter}[hang]
+  {\huge\bfseries}     % style
+  {\thechapter.\ }     % label shown as "1. "
+  {0pt}                % sep between label and title
+  {}                   % before-code
+
+% (optional) tighten vertical spacing around chapter titles
+\titlespacing*{\chapter}{0pt}{-6pt}{18pt}
+
+
+\begin{document}
+
+\begin{titlepage}
+  \thispagestyle{empty}
+  \vspace*{-1.5cm}
+  \begin{center}
+    \includegraphics[width=3.8cm]{uniLogo.png}\\[1cm]
+
+    {\Large\textbf{University of Petra}}\\[0.2cm]
+    {\large Faculty of Information Technology}\\[2cm]
+
+    {\Large\textbf{Security-Aware Human Tracking Drone}}\\[2cm]
+
+    {\large\textbf{Mohammad Ramadan Ahmed Abdrabbu — 202210108}}\\[0.2cm]
+    {\large\textbf{Abdulrahman Wael Suleiman Thiab — 202210293}}\\[0.2cm]
+    {\large\textbf{Fouad Mohammad Ali Omari — 202210142}}\\[1.2cm]
+
+    {\large\textbf{Supervisor:} Abdelkarem Al-Banna}\\[2cm]
+
+    {\large Graduation Project 1}\\[0.3cm]
+    {\large Academic Year}\\[0.1cm]
+    {\large 2025--2026}
+  \end{center}
+\end{titlepage}
+
+
+\begin{abstract}
+The \textit{Security-Aware Human Tracking Drone} addresses a clear operational need: reliable, autonomous person tracking with timely, actionable alerts. The system interprets proximity, motion, and occlusion cues to trigger appropriate responses across three modes; personal protection (escort \& notify), search and rescue (locate \& track), and security patrol (monitor \& alert). We deliver an operational prototype validated in simulation across varied environments, with quantitative baselines for tracking accuracy, alert precision/recall, and end-to-end latency. The architecture is modular and safety-oriented, aiming to integrate smoothly into real security workflows and improve response speed, coverage, and decision support.
+\end{abstract}
+
+\pagenumbering{roman}
+
+{\singlespacing\tableofcontents}
+
+\newpage
+\vspace*{-1cm}
+\section*{List of Acronyms}
+\addcontentsline{toc}{section}{List of Acronyms}
+
+
+\begin{acronym}
+    \setlength{\itemsep}{0pt}
+    \setlength{\parskip}{0pt}
+
+    \acro{ACK}{Acknowledgment}
+    \acro{AI}{Artificial Intelligence}
+    \acro{API}{Application Programming Interface}
+    \acro{BGR}{Blue-Green-Red}
+    \acro{CCTV}{Closed-Circuit Television}
+    \acro{CLI}{Command-Line Interface}
+    \acro{DDS}{Data Distribution Service}
+    \acro{DeepSORT}{Deep Simple Online and Realtime Tracking}
+    \acro{ENU}{East-North-Up}
+    \acro{FPS}{Frames Per Second}
+    \acro{GPU}{Graphics Processing Unit}
+    \acro{GPS}{Global Positioning System}
+    \acro{HTTP}{Hypertext Transfer Protocol}
+    \acro{HTTPS}{Hypertext Transfer Protocol Secure}
+    \acro{HUD}{Heads-Up Display}
+    \acro{ID}{Identity}
+    \acro{IDF1}{Identification F1 score}
+    \acro{IMU}{Inertial Measurement Unit}
+    \acro{IoU}{Intersection over Union}
+    \acro{JWT}{JSON Web Token}
+    \acro{LPF}{Low-Pass Filter}
+    \acro{MAVSDK}{MAVLink SDK}
+    \acro{MJPEG}{Motion JPEG}
+    \acro{MOT}{Multi-Object Tracking}
+    \acro{NED}{North-East-Down}
+    \acro{ORM}{Object-Relational Mapping}
+    \acro{PII}{Personally Identifiable Information}
+    \acro{PSD}{Public Security Directorate}
+    \acro{PTZ}{Pan-tilt-zoom}
+    \acro{PX4}{PX4 Autopilot}
+    \acro{QoS}{Quality of Service}
+    \acro{RBAC}{Role-Based Access Control}
+    \acro{ReID}{Re-Identification}
+    \acro{RGB}{Red-Green-Blue}
+    \acro{ROI}{Region of Interest}
+    \acro{ROS2}[ROS~2]{Robot Operating System~2}
+    \acro{RTL}{Return to Launch}
+    \acro{RTF}{Real Time Factor}
+    \acro{SAR}{Search and Rescue}
+    \acro{SITL}{Software In The Loop}
+    \acro{SMS}{Short Message Service}
+    \acro{SOT}{Single-Object Tracking}
+    \acro{SROS2}[SROS~2]{Security for ROS~2}
+    \acro{TLS}{Transport Layer Security}
+    \acro{UAV}{Unmanned Aerial Vehicle}
+    \acro{UAVDT}{Unmanned Aerial Vehicle Detection and Tracking (dataset)}
+    \acro{UI}{User Interface}
+    \acro{UTC}{Coordinated Universal Time}
+    \acro{VO}{Visual Odometry}
+    \acro{WBS}{Work Breakdown Structure}
+    \acro{WebSocket}{WebSocket Protocol}
+    \acro{YAML}{YAML Ain't Markup Language}
+    \acro{YOLO}{You Only Look Once}
+    \acro{YOLOv5}{You Only Look Once, version 5}
+    \acro{YOLOv8}{You Only Look Once, version 8}
+
+\end{acronym}
+\clearpage
+
+
+\cleardoublepage\phantomsection
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+
+\cleardoublepage\phantomsection
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\clearpage
+
+% ---------- Phase 1 (Project Initiating) ----------
+
+\setcounter{section}{0}
+
+\pagenumbering{arabic}
+\chapter{Project Initiating}
+
+
+\section{Introduction}
+The Security-Aware Human Tracking Drone enables a \ac{UAV} to detect, track, and safely follow a designated person while issuing context-aware alerts. It targets three modes: personal escort, search-and-rescue, and security patrol, and operates entirely in \ac{ROS2}/Gazebo. The core combines a detector with a multi-object tracker, an image-based follower controller, and an alerting layer tied to scenario rules.
+
+
+
+\section{Problem Definition}
+\noindent
+Public-safety operations such as personal protection, \ac{SAR}, and event security still face delays in detection, localization, and decision-making, particularly in large or cluttered areas where ground teams have limited coverage \citep{Goodrich2008JFR}. Small unmanned aerial vehicles (\ac{UAV}s) can extend situational awareness, but field experience shows that most deployments remain operator-centric and struggle with persistent, autonomous person-following in dynamic scenes \citep{Goodrich2008JFR}.
+
+At the perception layer, vision-based tracking from a moving aerial camera is brittle: people appear small, are frequently occluded, and backgrounds change rapidly, driving identity switches and target loss. Benchmark datasets (e.g., UAV123 and VisDrone) document these failure modes and show that crowded or low-resolution scenes remain challenging for modern detectors/trackers \citep{Mueller2016UAV123,Zhu2021VisDrone}. While recent multi-object tracking methods (e.g., ByteTrack) improve association under score drops, they are not by themselves an end-to-end, safety-aware following solution \citep{Zhang2022ByteTrack}.
+
+Operationally, any human-tracking drone must also respect privacy and governance constraints (e.g., role-based control, minimal data retention, geo-fencing), which civil-drone scholarship identifies as essential to legitimate use in public spaces \citep{Finn2012InfoSoc}. 
+
+\textbf{Therefore}, there is a clear gap: integrating reliable real-time person detection and tracking with privacy-aware geofencing and contextual alerting, so a \ac{UAV} can follow a designated person safely, re-acquire after occlusion, and notify responders in near real time across escort, \ac{SAR}, and patrol scenarios \citep{Mueller2016UAV123,Zhu2021VisDrone,Zhang2022ByteTrack}.
+
+
+
+\section{Project Objectives}
+\noindent
+This section lists the project’s measurable objectives, clear targets that define what the system must achieve across personal protection, search-and-rescue, and security-patrol scenarios.
+
+\begin{itemize}
+    \item \textbf{Objective 1:} Enable autonomous real-time human tracking using an intelligent aerial drone system capable of operating in complex environments.
+    \item \textbf{Objective 2:} Support personal protection by autonomously monitoring individuals in high-risk areas and issuing alerts upon detection of abnormal proximity or movement.
+    \item \textbf{Objective 3:} Assist search and rescue teams by autonomously identifying and tracking individuals in complex environments such as rubble or forests, minimizing response times.
+    \item \textbf{Objective 4:} Enhance surveillance capabilities by enabling drones to autonomously patrol defined zones, detect suspicious activity, and notify response units in real time.
+\end{itemize}
+
+\section{Current System and Existing Systems}
+
+\noindent
+This section clarifies the landscape we build upon. \textbf{Current System} summarizes how the problem is handled today in our target contexts (personal escort, \ac{SAR}, and security patrol), including the practices, tools, and workflows in use. \textbf{Existing Systems} then reviews concrete commercial products and open-source/academic stacks most related to our project. For each, we highlight capabilities, deployment constraints, and the gaps that motivate an autonomous human-tracking drone.
+
+\subsection{Current System}
+\noindent\textbf{Municipal \ac{CCTV} Surveillance (Amman/Zarqa).} Jordanian public safety currently relies on fixed citywide \ac{CCTV} networks operated through PSD-led control rooms (e.g., the Traffic Control Center and the Control \& Operations Directorate). These cameras monitor roads and public spaces and stream to centralized operators; a representative deployment is Zarqa’s ``Safe City'' rollout of high-definition \ac{PTZ} cameras on main streets feeding the \ac{PSD} control center in Amman \citep{AlRafie2022JOSA,Milesight2025Zarqa}. 
+
+\textit{Shortcomings.} Being static and operator-dependent, the system is inherently reactive: cameras cover fixed viewpoints, continuous cross-camera person tracking is not performed, and real-time alerting depends on human attention. In practice, manual \ac{CCTV} monitoring misses early signals and struggles to scale across many feeds \citep{TrackTik2019}. The network also raises governance and privacy questions (e.g., limited data-protection oversight, live-view identifiability vs.\ pixelation in recordings), reinforcing the need for privacy-aware, autonomous, mobile sensing in the proposed solution \citep{AlRafie2022JOSA}.
+
+
+\subsection{Existing Systems}
+
+To stay focused on the most relevant baselines for our three modes (personal escort, search and rescue, and security patrol), we profile four representative systems. Together they illustrate strong autonomy and sensing, yet also expose the gaps our project targets: privacy-aware human following, contextual alerting, and a ROS~2-centric integration.
+
+
+\textbf{Skydio X10} \citep{skydio_x10}.
+An advanced public-safety quadcopter with robust autonomy (including \ac{GPS}-denied flight) and obstacle avoidance, paired with modular day/night optics. It excels at safe navigation and vantage acquisition for responders. However, it does not analyze human behavior, enforce privacy/no-go zones, or run a person-following state machine that triggers contextual security alerts, which are capabilities central to our design.
+% Skydio X10
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.9\linewidth]{existing/skydio_x10.png}
+\caption{Skydio X10 public-safety quadcopter with multi-sensor payload. \emph{Source:} Skydio \citep{skydio_x10}.}
+\label{fig:existing-skydio-x10}
+\end{figure}
+
+\textbf{DJI Matrice 30T} \citep{dji_matrice_30t}.
+A widely deployed \ac{SAR} platform combining thermal and zoom imaging with weather resistance and rapid field setup. In practice it functions as an operator-centric tool: the pilot (or team) searches, inspects, and decides. It lacks autonomous human-following with re-acquire logic and does not provide privacy-aware, event-driven alerts integrated into a security workflow.
+% DJI Matrice 30T
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.9\linewidth]{existing/dji_m30t.jpg}
+\caption{DJI Matrice 30T with integrated zoom/thermal gimbal. \emph{Source:} DJI Enterprise \citep{dji_matrice_30t}.}
+\label{fig:existing-dji-m30t}
+\end{figure}
+
+\textbf{Height Technologies: Autonomous Security Drones} \citep{height_tech}.
+A commercially deployed perimeter/patrol solution with optical/thermal sensing, automated docking/recharge, and scheduled patrol routes. It advances surveillance automation for fixed sites, yet key decisions remain human-in-the-loop: critical alerts require validation, and the system does not perform continuous human following or contextual threat evaluation in dynamic rescue/escort scenarios.
+% Height Technologies (autonomous security drones)
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.5\linewidth]{existing/heighttech_dock.jpg}
+\caption{Autonomous “drone-in-a-box” style system for perimeter/patrol deployments. \emph{Source:} Height Technologies \citep{height_tech}.}
+\label{fig:existing-heighttech}
+\end{figure}
+
+
+\textbf{deepsort\_yolov5\_ros} \citep{deepsort_yolov5_ros}.
+An open-source integration of \ac{YOLOv5} detection with \ac{DeepSORT} tracking in a ROS framework. It provides real-time person detection and \ac{ID} persistence, a practical technical baseline for our FR1/FR3. Still, it is a perception component: there is no geo-fence enforcement, safety overrides, or security-oriented alert semantics, and it is not delivered as a full drone stack on ROS~2.
+% deepsort_yolov5_ros demo
+\begin{figure}[!htbp]\centering
+\includegraphics[width=.9\linewidth]{existing/deepsort_yolov5_ros_demo.png}
+\caption{Example \ac{YOLOv5}+\ac{DeepSORT} tracking output (IDs over time). \emph{Source:} \texttt{deepsort\_yolov5\_ros} demo \citep{deepsort_yolov5_ros}.}
+\label{fig:existing-deepsort-yolov5-ros}
+\end{figure}
+
+
+\medskip
+\noindent\textbf{Synthesis.}
+These systems cover navigation, sensing, and basic tracking well (X10/M30T/Height Tech in operations; \texttt{deepsort\_yolov5\_ros} for perception). None, however, deliver continuous, privacy-aware human following with contextual alerts and operator overrides on a modular ROS~2 architecture; this is the specific gap our project addresses.
+
+
+\section{Literature Review}
+
+\noindent
+This review synthesizes research directly relevant to vision-based human following on UAVs and its system integration. We motivate a \emph{\ac{MOT}-first} formulation over \ac{SOT} for robustness to occlusion and crowding, outline \emph{drone-aware \ac{MOT}} methods that handle moving cameras and small/blurred targets, identify ByteTrack as a practical real-time tracker for our baseline, and summarize ROS~2 architectural evidence for low-latency, secure perception–control pipelines. We close with a synthesis that extracts design principles and open gaps, which then inform our functional and non-functional requirements.
+
+\subsection*{From target following as a system problem to \ac{MOT}-first pipelines}
+Early \ac{UAV} “human following” systems often relied on single-object tracking (\ac{SOT}) after an initial detection, which is brittle under occlusion, identity (\ac{ID}) swaps among bystanders, and camera motion. In contrast, \citep{Ferreira2024} present an end-to-end pipeline organized as \emph{detect, then \ac{MOT}, then control} that explicitly exploits multi-target information: \ac{YOLOv8} for detections, BoT-SORT/ByteTrack for identity maintenance, a re-detection routine for recovery after occlusion, and a 3D flight controller to maintain line-of-sight while reacting to target motion. Their simulation and real-world results show that using \ac{MOT} (rather than \ac{SOT}) improves robustness to partial or full occlusions and disambiguation among multiple people; they also report a practical trade-off: ByteTrack is computationally lighter while BoT-SORT yields fewer \ac{ID} changes due to improved camera-motion handling \citep{Ferreira2024}. This frames human following on drones as a \emph{multi-object identity and control} problem, motivating a \ac{MOT}-first design.
+
+\subsection*{Drone-aware \ac{MOT}: handling moving cameras and small/blurred targets}
+General \ac{MOT} methods are usually developed for static or gently moving cameras; performance drops on drones because (i) people are small, blurred, or occluded and (ii) the camera and objects both move, degrading motion prediction and appearance consistency. \citet{Wang2024DroneMOT} target these challenges in \emph{DroneMOT}, introducing Dual-domain Integrated Attention (to enhance detection and embedding of small, blurred, occluded targets under fast platform motion) and a Motion-Driven Association that models concurrent drone and object motion; Adaptive Feature Synchronization helps maintain features across angle changes. On VisDrone and \ac{UAVDT}, DroneMOT reports consistent gains over prior \ac{MOT} on drones, supporting a requirement to incorporate ego-motion compensation and robust association.
+Complementarily, \citep{Lei2024DenseTrack} focus on \emph{aerial crowds}. DenseTrack injects \emph{crowd density} directly into tracking: per-frame density maps provide anchors to refine person localization; across frames, learned motion offsets are fused with position and appearance cues, with Hungarian assignment for \ac{ID}s. On DroneCrowd (drone-captured), DenseTrack outperforms prior methods, indicating that density guidance together with motion and appearance synergy is effective when targets are tiny and tightly packed \citep{Lei2024DenseTrack}. Together, these works suggest concrete tracker requirements for drones: ego-motion-aware association and density/\ac{ROI} guidance in crowded scenes.
+
+\subsection*{A strong, practical tracker for following: ByteTrack}
+For the tracker core, \citep{Zhang2022ByteTrack} propose ByteTrack, whose key idea is to \emph{associate almost every detection}, not only high-score boxes. Practically, ByteTrack runs a two-stage association: (1) match high-score detections to tracks (\ac{IoU} and/or \ac{ReID}), then (2) recover unmatched tracks using low-score detections with \ac{IoU} only, which reduces \ac{ID} fragmentation when confidences dip during blur or occlusion. ByteTrack delivers state-of-the-art accuracy and speed trade-offs (e.g., strong MOT17/MOT20 results) and consistently improves other trackers when its BYTE association is plugged in \citep{Zhang2022ByteTrack}. For a \ac{UAV} following stack, this directly addresses small-target score dips and short occlusions while staying real-time, making it a pragmatic default \ac{MOT} engine before layering drone-aware enhancements.
+
+\subsection*{System architecture to make it reliable in simulation (ROS~2)}
+Meeting low-latency perception to control constraints on wireless links requires appropriate middleware. \citep{Macenski2022} detail how ROS~2’s \ac{DDS}-backed design brings peer-to-peer discovery, tunable \ac{QoS} (reliability, durability, history, deadlines/liveliness), and security (\ac{SROS2}: authentication, access control, encryption) that ROS~1 lacked. Empirical results show sub-millisecond 95th-percentile intra-process latency for typical messages and resilience to packet loss; they also note \ac{DDS} defaults need tuning for $\,\gtrsim\,$1\,MB images or point clouds, which cues node composition and intra-process for vision pipelines \citep{Macenski2022}. Concretely for our stack, this justifies best-effort \ac{QoS} for camera topics, reliable \ac{QoS} for control and status, separate executors and timers for deterministic control rates (50–100\,Hz), lifecycle nodes for safe bring-up and shutdown, and \ac{SROS2} for secure simulation networking.
+
+\subsection*{Synthesis and identified gaps (bridge to requirements)}
+Across these works, three design principles emerge: (i) prefer \ac{MOT}-based following with explicit re-detection to survive occlusions and bystanders \citep{Ferreira2024}; (ii) add \emph{drone-aware} association, including ego-motion compensation and density/\ac{ROI} guidance, to maintain \ac{ID}s under angle or scale changes and platform motion \citep{Wang2024DroneMOT,Lei2024DenseTrack}; and (iii) implement on ROS~2 with tuned \ac{QoS}, executors, lifecycle, and intra-process composition to meet real-time constraints \citep{Macenski2022}. 
+\textbf{Gaps to address:} (a) limited end-to-end evaluation under extreme crowd densities and rapid attitude changes; this motivates density-guided proposals and small-object training; (b) robustness to long-term target loss and fast re-acquisition; this motivates explicit state machines and region searches; (c) tight latency/\ac{FPS} budgets on embedded \ac{GPU}s; this motivates profiling and \ac{QoS}/executor tuning; and (d) explicit ego-motion modeling in association when appearance is unreliable; this motivates motion-driven association and \ac{IMU}/\ac{VO} compensation \citep{Ferreira2024,Wang2024DroneMOT,Lei2024DenseTrack,Zhang2022ByteTrack}. 
+\emph{In summary}, contemporary \ac{UAV} human-following systems should couple \ac{MOT}-first tracking (with drone-aware association) to an image-based following controller on a ROS~2 stack tuned for real-time operation; these conclusions directly inform the functional and non-functional requirements we specify next.
+
+
+\section{Stakeholder List}
+Table~\ref{tab:stakeholders} identifies the key stakeholders in the project, outlining their roles, interests, and level of importance.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|
+                                    >{\raggedright\arraybackslash}X|
+                                    >{\raggedright\arraybackslash}p{0.20\linewidth}|}
+\hline
+\textbf{Stakeholder} & \textbf{Interest} & \textbf{Importance} \\
+\hline
+Development Team & Design, implement, and simulate the system according to the project's objectives and constraints. & \textbf{High} — responsible for building the system and ensuring its correctness. \\
+\hline
+Security Personnel & Utilize the system in patrol or surveillance scenarios to monitor environments and respond to detected threats. & \textbf{High} — primary users of the system in operational contexts. \\
+\hline
+Search and Rescue Teams & Use the system during emergencies to locate and track missing or trapped individuals. & \textbf{High} — critical users in time-sensitive rescue missions. \\
+\hline
+Civilians / Tracked Individuals & Indirectly affected by the drone's monitoring activities; require privacy and safety to be respected. & \textbf{Medium} — stakeholders impacted by how the system behaves in public environments. \\
+\hline
+Domain Experts (Security / Rescue Consultants) & Contribute field knowledge and scenario-specific constraints that inform system behavior and feature selection. & \textbf{Low} — influence requirement quality and realism but are not system users. \\
+\hline
+\end{tabularx}
+\caption{Stakeholder List}
+\label{tab:stakeholders}
+\end{table}
+
+
+\section{Proposed Scope}
+
+The project will design and simulate a modular drone that supports real-time autonomous human tracking and context-aware security interventions. The system will target three operational domains: personal protection, search and rescue, and autonomous security patrol.
+
+In the personal protection scenario, the drone will be capable of dynamically following a designated individual, analyzing spatial relationships, and issuing alerts based on proximity thresholds or abnormal movement patterns. For search and rescue, the system will simulate autonomous exploration of cluttered or unstructured environments to locate and track individuals using vision-based detection. In security patrol mode, the drone will execute predefined coverage routes, monitor behavioral anomalies within its field of view, and relay alerts to external systems.
+
+The scope encompasses autonomous path planning, human detection and tracking using computer vision techniques, dynamic zone patrolling, and real-time alert generation. All system functionalities will be developed, validated, and demonstrated within a simulation environment using \ac{ROS2} middleware and Gazebo physics-based simulation. Output will include live visualizations, detection logs, and behavior-triggered event notifications.
+
+\section{Scope Excluded and Project Constraints}
+\noindent
+This section defines the project boundaries and limiting factors for GP1. We first state what is intentionally out of scope to keep the work simulation-focused, then summarize time, financial, and technical constraints that shape design choices, risk, and evaluation .
+
+
+\subsection{Scope Excluded}
+The current phase of the project will focus exclusively on simulating core drone functionality within a controlled environment. As such, the following elements are excluded from the project scope:
+\begin{itemize}
+    \item \textbf{Real-world hardware integration} is excluded due to the project's simulation-based nature. Physical drone deployment requires access to aerial platforms, safety approvals, and additional technical overhead beyond the scope of this phase.
+    \item \textbf{Multi-agent drone coordination} is not addressed, as coordinating multiple autonomous units requires advanced task-sharing algorithms and inter-agent communication, which would significantly increase system complexity.
+    \item \textbf{Voice and gesture-based control} is excluded as the system focuses on autonomous decision-making rather than user-driven navigation or interaction methods
+\end{itemize}
+
+\subsection{Project Constraints}
+The project is subject to a number of constraints across time, financial resources, and technical capabilities that directly influence the depth and pace of development.
+
+\textbf{Time Constraint:}  
+The project is distributed across two academic phases: Graduation Project 1 (GP1), which spans a shortened summer semester of approximately two months, and Graduation Project 2 (GP2), which extends over a regular four-month semester. The limited duration of GP1 constrains the implementation to foundational design, simulation, and system planning. More advanced integration, optimization, and testing are deferred to GP2, where a longer timeframe will allow for full system development.
+
+\textbf{Financial Constraint:}  
+The project does not currently have allocated funding for physical equipment or hardware infrastructure. As such, development will be limited to resources that are freely available or already accessible to the team through academic or open-source channels.
+
+\textbf{Technical Constraint:}  
+The system is being developed by a student team that is concurrently learning and applying advanced robotics and \ac{AI} tools. This introduces a natural learning curve that may limit the complexity or performance of certain features within the early development phases.
+
+
+\chapter{Project Requirements}
+\noindent
+This chapter defines what the system must do and how well it must perform. We first summarize the requirements-gathering approach, then formalize outcomes as IEEE-style Functional Requirements (FR) and Non-Functional Requirements (NFR), and finally provide representative Use Case specifications that anchor scope, validation, and traceability to stakeholder needs.
+
+\section{Requirements gathering}
+\noindent
+We employed a lightweight mixed-methods approach: (i) a short public questionnaire to capture stakeholder expectations and concerns, and (ii) a focused team brainstorming session to consolidate and prioritize functions and qualities. The synthesized insights directly inform the FR/NFR lists and the Use Case specifications that follow.
+
+
+\subsection{Questionnaire}
+
+A structured questionnaire was published to collect requirements from a broad, non-specialist audience. The form presented a short bilingual (EN/AR) description of the concept and emphasized that participation is voluntary and for academic purposes only. Distribution channels were general social media (e.g., Instagram stories) and student messaging groups. The survey opened on \textit{25 Aug 2025} and, at the time of writing, received \textbf{19} valid responses (all consented).
+
+\begin{itemize}[leftmargin=*]
+\item \textbf{Respondent profile.}
+Most respondents are aged \textbf{18–24 (100\%)}, with roles primarily \textbf{Students (95\%)} and a small portion Fresh graduates (5\%). Familiarity with small drones is modest (1–5 scale): \textbf{mean 2.4}, median 2, indicating limited hands-on experience and the need for clear, explanatory \ac{UI} text.
+
+\item \textbf{Perceived usefulness \& contexts.}
+Respondents most often envisioned use in \textbf{Public spaces (16 mentions)}, followed by Workplaces (10), Healthcare (9), Education (9), Tourism/heritage (9), Transport (8), and Industrial/warehouses (8). Perceived safety impact is generally positive: \textbf{95\%} rated 3–5 on “I would feel safer.” The outcomes people value most are \textbf{crowd safety} and \textbf{locating a person who needs help} (13 each), closely followed by \textbf{faster incident alerts} (12).
+
+\item \textbf{Human tracking preferences.}
+Comfort with following a designated person skews cautious: \textbf{“Yes, with conditions” (13)}; Yes (2); No (3); Not sure (1). Who may designate a target is expected to be controlled, with \textbf{authorized staff} and the \textbf{person themself} appearing most often. For spacing, respondents prefer \textbf{moderate (3–5 m)} or \textbf{far (6–10 m)} stand-off distances (9 and 8 mentions respectively), and report a middle comfort level for operating altitude (median 3 on a 1–5 scale). Most prefer tracking to be active \textbf{either by user or staff depending on the situation} (14).
+
+\item \textbf{Operations, alerts \& controls.}
+The favored operating style is \textbf{supervised by staff} (8), followed by manual with assists (6) and fully autonomous (5). Willingness indicators are neutral-to-positive: support in area (mean \textbf{3.47}/5) and try for one month (mean \textbf{3.84}/5). For notifications, respondents lean to an \textbf{audible on-site alert} (8) alongside app (5) and \ac{SMS} (5). \textbf{79\%} expect alerts within \textbf{$\leq$2 s}. Manual overrides should be available primarily to \textbf{authorized staff} and \textbf{the escorted person}.
+
+\item \textbf{Concerns \& preferences.}
+Top concerns are \textbf{cost} (9), \textbf{weather sensitivity} (7), and a cluster covering \textbf{safety near people}, \textbf{data handling}, \textbf{reliability/stability}, and \textbf{false alarms} (each 6). For operating times, opinions spread but many favor \textbf{24/7} (9) or \textbf{day+evening} (5). Visibility preferences split between \textbf{depends on place} (7) and \textbf{clearly visible} (7), with some preferring discreet operation (5).
+
+\item \textbf{Implications for requirements.}
+Expectations for rapid alerts reinforce \textbf{NFR2 (Alert latency)}; the preference for supervision and controlled designation strengthens \textbf{FR7} and \textbf{NFR7} \ac{RBAC}. Reported stand-off/altitude comfort informs \textbf{FR4} and \textbf{NFR5/NFR10} (following quality and safety distance). Interest in crowd safety and incident awareness supports \textbf{FR6} and \textbf{FR9} (alert taxonomy and Live View). Concerns about reliability and conditions point to robustness/availability targets (\textbf{NFR6}, \textbf{NFR11}).
+\end{itemize}
+\noindent\textit{See Appendix~\ref{app:questionnaire} for the complete form made in google forms.}
+
+
+
+\subsection{Brainstorming}
+
+A focused brainstorming session was held by the project team to elicit and cluster requirements. Prompts were framed around \textit{“What must the system do?”} (functions) and \textit{“How well must it do it?”} (qualities). Ideas were affinity-grouped into perception, tracking, following/control, safety/geo-fencing, alerts/notifications, overrides, logging/audit, and operator \ac{UI}. The session consolidated \textbf{FR1–FR10} and the essential NFRs (throughput/latency, tracking quality and re-acquisition, usability, \ac{RBAC} security, safety distance, availability, and target platforms); items needing further study were parked for future refinement.
+\noindent\textit{See Appendix~\ref{app:brainstorm} for the full session agenda.}
+
+
+
+% ----------------- End: Information Gathering ----------------
+
+
+\section{Functional Requirements}
+\noindent
+This section lists IEEE-style functional requirements, the externally observable behaviors the system must provide. Each item is unambiguous, verifiable, and traceable to stakeholder needs and the use cases.
+
+
+\begin{enumerate}[label=\textbf{FR\arabic*}, leftmargin=*]
+
+\item The system shall detect people in the forward camera view and output a bounding box and confidence for each detected person.
+
+\item The system shall allow an authorized user to designate one person to follow from the set of detected people.
+
+\item The system shall track the designated person across frames and maintain a persistent track ID.
+
+\item The system shall follow the designated person while maintaining a configurable stand-off distance (m) and altitude band (m).
+
+\item The system shall ingest one or more restricted areas (geo-fences) and prevent path generation that crosses a restricted polygon.
+
+\item The system shall deliver alert events to an alerts channel including at least: target lost, target re-acquired, restricted-zone breach, manual override invoked, return/land.
+
+\item The system shall provide manual override commands: pause, resume, return, and land (available to authorized users).
+
+\item The system shall log alerts, operator commands, status changes, and positions with timestamps.
+
+\item The system shall provide a website and a mobile application that show real-time video, target overlays/IDs, the current system state, configured geo-fences, and the alerts feed.
+
+\item The system shall provide login on the website and mobile app via email/username and password, issuing a short-lived \ac{JWT} with role claims to establish a session.
+
+
+
+\end{enumerate}
+
+\section{Non-Functional Requirements}
+\noindent
+This section captures non-functional requirements (quality attributes and constraints) with measurable targets to guide design trade-offs and acceptance testing.
+
+
+\begin{enumerate}[label=\textbf{NFR\arabic*}, leftmargin=*]
+
+\item The end-to-end vision pipeline (camera, detection, tracking, controller) shall run $\geq 15$ FPS (avg) and $\geq 12$ FPS (p5).
+
+\item Alerts shall be delivered to the website in real time with p95 $\leq 200$ ms, and push notifications to the mobile app with p95 $\leq 5$ s.
+
+\item Website/mobile commands (pause, resume, return, land) shall be acknowledged with p95 $\leq 200$ ms.
+
+\item Multi-object tracking for the designated person shall achieve \ac{IDF1} $\geq 0.60$ on the standard test scenes.
+
+\item The system shall keep the designated person within $\pm 20\%$ of frame center (median) and stand-off distance within $\pm 1$ m (median).
+
+\item After temporary target loss, the system shall re-acquire the designated person in $\leq 2$ s in $\geq 80\%$ of occlusion cases.
+
+\item All external \ac{API}s and the website/mobile app shall enforce \ac{TLS}~1.2+ and \ac{JWT}-based \ac{RBAC}; no unauthenticated writes.
+
+\item The website and mobile app shall be easy to use and easy to navigate, demonstrated by $\geq 90\%$ first-time users completing the core flow within $\leq 2$ minutes (median).
+
+\item At delivery, the website shall operate on the latest stable Chrome and Firefox (desktop/mobile), and the mobile app shall operate on Android (current major and previous major release), with all critical flows (designate and receive alerts) supported.
+
+\item The system shall maintain a minimum separation of $\geq 2$ m from people at all times.
+
+\item During planned operation windows, the website and notification bridge shall be available $\geq 95.0\%$.
+
+
+\end{enumerate}
+
+\section{Use cases}
+
+\noindent
+These use cases outline actor--system interactions that realize the functional requirements, with concise preconditions, main flows, exceptions, and postconditions for validation.
+
+% ----------------- UC-01 ----------------
+\subsection*{UC-01}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} At shift start, the User opens the SAHTD web dashboard, enters email and password, and receives an authenticated session. The dashboard loads role-based controls and live system status.
+
+\noindent\textbf{Use Case Name:} User Login (Web)\\
+\textbf{Actors:} User (generalized to Operator / Viewer)\\
+\textbf{Entry condition (Preconditions):} Backend API is reachable; login screen is accessible; user account exists.\\
+\textbf{Exit condition (Post conditions):} A valid JWT session is established and the dashboard shows authenticated state with role-based access.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-01: User Login}
+\label{tab:uc01_login}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;User opens the Login screen. & \\ \hline
+ & 2.\;System displays the login form (email, password) and a \emph{Log in} action. \\ \hline
+3.\;User enters credentials and submits. & \\ \hline
+ & 4.\;System validates input format and applies attempt throttling. \\ \hline
+ & 5.\;System verifies credentials, issues a short-lived JWT with role claims, and returns it to the client. \\ \hline
+ & 6.\;Client stores the session token securely and redirects to the authenticated dashboard view. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+3- Missing/invalid fields: highlight errors and prevent submission.\\
+4- Too many attempts: show ``Too many attempts, try again later'' and throttle.\\
+5- Invalid credentials or locked account: show a generic error; do not reveal which credential is incorrect.\\
+
+\noindent\textbf{Special Requirements:} Enforces \textbf{NFR7} (TLS/JWT + RBAC) and the login flow adheres to \textbf{NFR8} (easy to use/navigate).
+
+% ----------------- UC-02 ----------------
+\subsection*{UC-02}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} After the simulation and autonomy stack are launched, the forward camera stream is bridged into ROS~2. The detector publishes person detections continuously and the operator can observe detections via the dashboard/overlay channels.
+
+\noindent\textbf{Use Case Name:} Detect People in Forward Camera\\
+\textbf{Actors:} Operator, Camera Sensor (PX4/Gazebo forward camera)\\
+\textbf{Entry condition (Preconditions):} Simulation is running; camera topic is available; \texttt{ros\_gz\_bridge/ros\_gz\_image} and \texttt{yolo\_node} are running.\\
+\textbf{Exit condition (Post conditions):} A detections message is published and (optionally) a debug/overlay stream is updated.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-02: Detect People}
+\label{tab:uc02_detect}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Operator launches the simulation and SAHTD autonomy stack. & \\ \hline
+ & 2.\;System bridges the Gazebo camera topic into ROS~2 as \texttt{/camera/image\_raw}. \\ \hline
+ & 3.\;\texttt{yolo\_node} subscribes to \texttt{/camera/image\_raw} and runs person inference on the latest frame. \\ \hline
+ & 4.\;System generates detections (bounding boxes + confidence) for each person. \\ \hline
+ & 5.\;System publishes \texttt{/perception/detections} and updates the debug/overlay output (if enabled). \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- Camera offline/no signal: raise camera health flag and retry subscription.\\
+5- Publish failure: retry with backoff; persist locally and display a warning.
+
+\noindent\textbf{Special Requirements:} Meets \textbf{NFR1} throughput for the vision pipeline; outputs contain no PII beyond boxes/confidences (aligns with \textbf{NFR7}).
+
+% ----------------- UC-03 ----------------
+\subsection*{UC-03}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} The Operator selects a tracked person ID from the dashboard. The system publishes \texttt{/perception/target\_select} and the follower transitions from SEARCH to LOCKED on that target.
+
+\noindent\textbf{Use Case Name:} Designate Person to Follow\\
+\textbf{Actors:} Operator\\
+\textbf{Entry condition (Preconditions):} Operator is authenticated; tracks/IDs are available; follower is running in SEARCH (no target locked).\\
+\textbf{Exit condition (Post conditions):} Selected \texttt{target\_id} is published; system enters LOCKED; selection is logged.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-03: Designate Person}
+\label{tab:uc03_designate}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Operator opens the target selection UI. & \\ \hline
+ & 2.\;System displays currently available tracked IDs (from \texttt{/perception/tracks}). \\ \hline
+3.\;Operator selects one ID and confirms. & \\ \hline
+ & 4.\;System publishes \texttt{/perception/target\_select} with the selected ID. \\ \hline
+ & 5.\;\texttt{follow\_node} receives the selection and transitions to \texttt{LOCKED} when the selected track is available and stable. \\ \hline
+ & 6.\;System updates the UI highlight/state and records the selection in logs. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- No tracked IDs available: show ``No selectable targets'' and keep selection disabled.\\
+5- Target unavailable/unstable: \texttt{follow\_node} remains in \texttt{SEARCH} and UI shows ``Target unavailable''.
+
+\noindent\textbf{Special Requirements:} Enforces \textbf{NFR7} (RBAC; no unauthenticated writes). Only one active \texttt{target\_id} at a time; a new designation replaces the previous and is logged.
+
+% ----------------- UC-04 ----------------
+\subsection*{UC-04}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} The tracker maintains persistent track IDs across frames and publishes updated tracks. When the selected target temporarily disappears, the system emits target status events (lost/reacquired) until the target becomes stable again.
+
+\noindent\textbf{Use Case Name:} Track Designated Person\\
+\textbf{Actors:} Camera Sensor (PX4/Gazebo forward camera), Operator\\
+\textbf{Entry condition (Preconditions):} Detections are being published; tracking module is running; a \texttt{target\_id} is selected.\\
+\textbf{Exit condition (Post conditions):} Updated tracks are published for the current cycle and the selected target (if present) can be extracted by the follower.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-04: Track Designated Person}
+\label{tab:uc04_track}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Camera provides a new frame (via \texttt{/camera/image\_raw}). & \\ \hline
+ & 2.\;System updates detections for the frame (\texttt{/perception/detections}). \\ \hline
+ & 3.\;\texttt{bytetrack\_node} associates detections into persistent track IDs and publishes \texttt{/perception/tracks}. \\ \hline
+ & 4.\;\texttt{follow\_node} reads \texttt{/perception/tracks} and attempts to extract the selected \texttt{target\_id}. \\ \hline
+ & 5.\;System publishes the follower FSM state (\texttt{SEARCH}/\texttt{LOCKED}) and emits target status events (e.g., \texttt{TARGET\_LOST}, \texttt{TARGET\_REACQUIRED}) for monitoring. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- No detections available: tracking publishes no/empty tracks for that cycle and the follower drops to \texttt{SEARCH} while keeping its keep-alive output.\\
+3- Degraded tracking: the tracker may fall back to \ac{IoU} matching and publishes best-effort IDs.\\
+4- Selected target not present: follower remains in \texttt{SEARCH} until the target becomes available and stable.
+
+\noindent\textbf{Special Requirements:} Targets \textbf{NFR4} (ID consistency) and \textbf{NFR6} (re-acquire responsiveness) within \textbf{NFR1} throughput constraints.
+
+% ----------------- UC-05 ----------------
+\subsection*{UC-05}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} After a target is designated, the follower keeps the target near image center and maintains a configured stand-off (image-based range proxy). Commands are sent offboard to PX4 via MAVSDK.
+
+\noindent\textbf{Use Case Name:} Follow Designated Person (Image-Based Stand-off \& Centering)\\
+\textbf{Actors:} Operator, PX4 SITL (Autopilot)\\
+\textbf{Entry condition (Preconditions):} A \texttt{target\_id} is selected; \texttt{follow\_node} is running; MAVSDK link to PX4 is established; vehicle is airborne or in a controllable state.\\
+\textbf{Exit condition (Post conditions):} A command for the current control cycle is published to \texttt{/sahtd/follow/cmd\_body} (or a safe zero command if unsafe/lost).
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-05: Follow Designated Person}
+\label{tab:uc05_follow}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Operator designates a \texttt{target\_id}. & \\ \hline
+ & 2.\;\texttt{follow\_node} reads the target bounding box (centering error + bbox height proxy) from \texttt{/perception/tracks}. \\ \hline
+ & 3.\;System computes body-frame velocity and yaw-rate commands to center the target and maintain stand-off. \\ \hline
+ & 4.\;System applies safety clamps and rate limits; if the target is stale/unavailable it publishes a safe zero command while keeping the control stream alive. \\ \hline
+ & 5.\;\texttt{follow\_node} publishes \texttt{/sahtd/follow/cmd\_body} at a fixed 20~Hz and sends offboard commands to PX4 via MAVSDK/MAVLink UDP; it also republishes local pose/telemetry for other nodes. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- No valid target track: follower remains in \texttt{SEARCH} and displays ``Re-acquiring''.\\
+5- Offboard not available: retry connection/priming and continue publishing safe zero commands.
+
+\noindent\textbf{Special Requirements:} Meets \textbf{NFR5} (center/stand-off control) and maintains \textbf{NFR10} minimum-separation safety via clamps/policies.
+
+% ----------------- UC-06 ----------------
+\subsection*{UC-06}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} Before operation, the Operator selects/edits a polygon fence in configuration (\ac{YAML}). During flight, the geo-guard monitors the drone pose and clamps motion commands to prevent boundary crossing.
+
+\noindent\textbf{Use Case Name:} Configure and Enforce Geo-fence\\
+\textbf{Actors:} Operator\\
+\textbf{Entry condition (Preconditions):} Operator is authenticated; geo-fence configuration exists (\ac{YAML}); \texttt{geo\_guard\_node} is running and receiving \texttt{/gp2/vehicle/pose\_local} and \texttt{/sahtd/follow/cmd\_body}.\\
+\textbf{Exit condition (Post conditions):} Guard status is updated and, when needed, motion is overridden (clamped) to prevent boundary crossing.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-06: Geo-fence Enforcement}
+\label{tab:uc06_geofence}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Operator selects/updates the geo-fence polygon configuration (\ac{YAML}) and launches the stack. & \\ \hline
+ & 2.\;\texttt{geo\_guard\_node} loads polygon vertices and margin thresholds at startup. \\ \hline
+ & 3.\;\texttt{geo\_guard\_node} continuously evaluates drone pose against the polygon boundary. \\ \hline
+ & 4.\;When approaching or violating the boundary, the node publishes \texttt{/gp2/guard/status} and \texttt{/gp2/guard/reason} (e.g., \texttt{GEOGUARD\_HOLD} / \texttt{GEOGUARD\_VIOLATION}). \\ \hline
+ & 5.\;The node overrides motion by clamping the velocity command (e.g., forward \texttt{vx$\rightarrow$0} in HOLD; full stop in VIOLATION) while keeping the control loop alive. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- Invalid polygon geometry: keep enforcement disabled and publish a configuration error status.\\
+3- Pose unavailable: enter conservative \texttt{GEOGUARD\_HOLD} and publish ``pose unavailable'' reason.\\
+
+\noindent\textbf{Special Requirements:} Enforces \textbf{NFR7} (RBAC for configuration where applicable) and provides fast clamp response consistent with safety expectations.
+
+% ----------------- UC-07 ----------------
+\subsection*{UC-07}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} When the system changes state (e.g., target lost/reacquired, geo-guard HOLD/VIOLATION, manual override), the backend streams alerts to the dashboard in real time and records the event.
+
+\noindent\textbf{Use Case Name:} Deliver Alert Events to Alerts Channel\\
+\textbf{Actors:} User (Operator / Viewer)\\
+\textbf{Entry condition (Preconditions):} User is authenticated; dashboard is connected; backend WebSocket endpoints are reachable.\\
+\textbf{Exit condition (Post conditions):} Alert is displayed in the UI and recorded (event log).
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-07: Deliver Alerts}
+\label{tab:uc07_alerts}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;User opens the Alerts view in the dashboard. & \\ \hline
+ & 2.\;System establishes a WebSocket connection for alerts and begins streaming events. \\ \hline
+ & 3.\;System receives an operational event (guard transition, target status, command \ac{ACK}, etc.). \\ \hline
+ & 4.\;System formats the alert payload (timestamp, severity, message, optional target\_id). \\ \hline
+ & 5.\;System pushes the alert to the dashboard and updates UI indicators (toast/list/counter). \\ \hline
+ & 6.\;System records the alert to the operational event log (e.g., \texttt{events.jsonl}). \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- WebSocket unavailable: retry with backoff and show ``Alerts temporarily unavailable''.\\
+6- Local log unavailable: buffer in memory and retry; do not block operation.
+
+\noindent\textbf{Special Requirements:} Meets \textbf{NFR2} alert latency targets for the web UI and enforces \textbf{NFR7} (TLS/JWT RBAC).
+
+% ----------------- UC-08 ----------------
+\subsection*{UC-08}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} The Operator issues Pause/Resume/\ac{RTL}/Land from the dashboard. The backend validates RBAC, forwards the command to the autonomy stack, executes via MAVSDK, and returns an acknowledgment to the UI.
+
+\noindent\textbf{Use Case Name:} Manual Override Commands\\
+\textbf{Actors:} Operator, PX4 SITL (Autopilot)\\
+\textbf{Entry condition (Preconditions):} Operator is authenticated with override privileges; backend and autonomy stack are running; MAVSDK link is available for flight actions.\\
+\textbf{Exit condition (Post conditions):} Command result is acknowledged and visible in UI; an operational event record is created.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-08: Manual Override}
+\label{tab:uc08_override}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;Operator opens the Controls panel. & \\ \hline
+ & 2.\;System shows allowed commands based on role and current state. \\ \hline
+3.\;Operator selects a command (Pause / Resume / \ac{RTL} / Land). & \\ \hline
+ & 4.\;Backend validates privileges and publishes the command to \texttt{/sahtd/cmd}. \\ \hline
+ & 5.\;\texttt{CommandExecutor} receives the command, executes the action (pause/resume policy or MAVSDK \ac{RTL}/Land), and publishes an \ac{ACK} on \texttt{/sahtd/cmd\_ack}. \\ \hline
+ & 6.\;Backend streams the \ac{ACK}/state update to the dashboard and records the override event to the operational log. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+4- Unauthorized operator: deny the action and display ``Insufficient privileges''.\\
+5- Command rejected/unavailable: display reason and keep prior state.
+
+\noindent\textbf{Special Requirements:} Meets \textbf{NFR3} acknowledgment responsiveness goals and enforces \textbf{NFR7} (RBAC + audit logging).
+
+% ----------------- UC-09 ----------------
+\subsection*{UC-09}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} During operation, the system records guard transitions, target selection, command acknowledgments, target lost/reacquired events, and pose samples into structured logs with timestamps, without disrupting real-time control.
+
+\noindent\textbf{Use Case Name:} Record Operational Events (Logging)\\
+\textbf{Actors:} Operator, System Event Sources (Autonomy/Backend)\\
+\textbf{Entry condition (Preconditions):} Logging subsystem is enabled; event sources are active.\\
+\textbf{Exit condition (Post conditions):} Event record is appended to local persistent storage without blocking real-time control loops.
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-09: Record Operational Events}
+\label{tab:uc09_record}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;An operational event occurs (guard change, selection, command ACK, target status). & \\ \hline
+ & 2.\;System captures event context (type, payload, IDs, severity). \\ \hline
+ & 3.\;System assigns a UTC timestamp and a session identifier (if available). \\ \hline
+ & 4.\;System formats the record and appends it to a structured local log (e.g., \texttt{events.jsonl}). \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+4- Local log write fails: buffer in memory and retry; emit a health warning.
+
+\noindent\textbf{Special Requirements:} Logging must not degrade control/perception loops (\textbf{NFR1}); records exclude PII and are role-restricted (\textbf{NFR7}).
+
+% ----------------- UC-10 ----------------
+\subsection*{UC-10}
+
+\vspace{0.5em}
+\noindent\textbf{Scenario:} The User opens the monitoring dashboard to observe current follow state, guard status, alerts, and (when enabled) a live visual stream. The view updates continuously during the session.
+
+\noindent\textbf{Use Case Name:} Open Live View and Monitor\\
+\textbf{Actors:} User (Operator / Viewer)\\
+\textbf{Entry condition (Preconditions):} User is authenticated; dashboard is reachable; telemetry/alerts streaming is available.\\
+\textbf{Exit condition (Post conditions):} Live monitoring view is displayed and remains updating (state, alerts, and optional video).
+
+\noindent\textbf{Flow of Events:}
+\begin{table}[H]
+\centering
+\caption{Use Case UC-10: Open Live View}
+\label{tab:uc10_live_view}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Actor} & \textbf{System} \\
+\hline
+1.\;User navigates to the Live View / Monitor page. & \\ \hline
+ & 2.\;System opens WebSocket streams for state and alerts and begins receiving updates. \\ \hline
+ & 3.\;System renders current follower FSM state (\texttt{SEARCH}/\texttt{LOCKED}), selected target info (if any), and geo-guard status/reason. \\ \hline
+ & 4.\;System renders incoming alerts in real time (toast/list). \\ \hline
+ & 5.\;If visual streaming is enabled, system displays the live feed/frames endpoint. \\ \hline
+\end{tabularx}
+\end{table}
+
+\vspace{0.5em}
+\noindent\textbf{Exceptions:}\\
+2- WebSocket unavailable: show ``offline'' banner and retry with backoff.\\
+5- Video unavailable: show placeholder and continue monitoring state/alerts.
+
+\noindent\textbf{Special Requirements:} Enforces \textbf{NFR7} (TLS/JWT RBAC), supports \textbf{NFR9} platforms, and meets \textbf{NFR11} (auto-reconnect and graceful degraded mode).
+
+
+
+\newpage
+
+\chapter{Project Planning}
+\noindent
+This phase organizes how the project will be executed and tracked. We (i) define the process model that governs delivery, (ii) outline scope via a \ac{WBS}, (iii) define, sequence, and estimate activities (Gantt or Activity Network), (iv) plan and schedule resources (human, software, tools, and hardware), (v) list the development environments and system requirements, (vi) estimate costs and budget, and (vii) register key risks with mitigations and contingencies. The outputs of this phase provide a time–scope–resource baseline against which progress and quality will be controlled in subsequent weeks.
+
+\section{Process Model}
+\noindent
+We adopt \textbf{Scrum}. Scrum is a lightweight framework in which work is organized into timeboxed Sprints that produce a usable, valuable \emph{Increment}. It includes five events (Sprint, Sprint Planning, Daily Scrum, Sprint Review, Sprint Retrospective) and three artifacts with their commitments (Product Backlog, Sprint Backlog, Increment).
+
+
+\section{Scope Initiation}
+\noindent
+The \ac{WBS} decomposes the project into deliverable-oriented work packages.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.8\textwidth]{Project Planning/WBS.png}
+    \caption{Work Breakdown Structure}
+    \label{fig:wbs}
+\end{figure}
+
+
+
+\section{Gantt Chart}
+\noindent
+The Gantt timeline maps these packages from late July 2025 to mid-January 2026, showing dependencies, sprint cadence, and milestone handoffs.
+
+\begin{figure}[h!]
+  \centering
+  \includegraphics[width=1.2\textwidth,center,clip]{Project Planning/GANTT.png}
+  \includegraphics[width=1.2\textwidth,center,clip]{Project Planning/GANTT2.png}
+  \caption{Gantt Chart}
+  \label{fig:gantt}
+\end{figure}
+
+\section{Resource Sheet}
+\noindent
+This sheet lists work resources (with hourly rates and allocations) and material tools; progress is tracked via actual vs. remaining work and percent complete per person.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{Project Planning/Resource_Sheet.png}
+  \caption{Resource Sheet}
+  \label{fig:resource-sheet}
+\end{figure}
+
+% --- Resource Overview ---
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{Project Planning/Resource_Overview.png}
+  \caption{Resource Overview: work status and \% complete by resource.}
+  \label{fig:resource-overview}
+\end{figure}
+
+\section{System Development Requirements}
+
+We enumerate the simulation-first stack and the development / toolset plus a single Android test device; most items are open source or zero cost.
+
+\begin{table}[h!]
+\centering
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Resource Type} & \textbf{Resources} \\
+\hline
+Human Resources &
+\begin{itemize}[leftmargin=*]   
+  \item Mohammad — \$30/hr
+  \item Fouad — \$20/hr
+  \item Abdulrahman — \$20/hr
+  \item Dr.\ Abdelkarem — \$40/hr
+\end{itemize}\\
+\hline
+Software &
+\begin{itemize}[leftmargin=*]
+  \item ROS~2
+  \item Gazebo
+  \item Ubuntu
+  \item YOLO
+  \item OpenCV
+  \item GitHub
+  \item VS Code
+  \item Node.js + npm
+  \item MongoDB
+  \item React
+  \item Microsoft Project (subscription)
+  \item Overleaf (LaTeX)
+  \item Google Forms
+  \item Figma
+  \item Postman
+  \item Web hosting
+\end{itemize}\\
+\hline
+Hardware &
+\begin{itemize}[leftmargin=*]
+  \item Android Test Phone — \$250 (one-time)
+  % Developer Laptop is excluded as new purchase, assumed available
+\end{itemize}\\
+\hline
+\end{tabularx}
+\caption{System Development Requirements}
+\end{table}
+
+
+\section{Cost Estimation and Budgeting}
+\noindent
+This section consolidates human and material costs into a budget baseline and reports actual vs. remaining spend; the dashboards visualize cumulative cost against \% complete and the distribution of costs across top-level tasks.
+
+
+
+% ---------- HUMAN RESOURCES ----------
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{7cm}|c|c|}
+\hline
+\multicolumn{3}{|c|}{\textbf{Human Resources}}\\ \hline
+\textbf{Name} & \textbf{Rate (per hour)} & \textbf{Total Project Cost}\\ \hline
+Mohammad & \$30/hr & \$4{,}230\\ \hline
+Fouad & \$20/hr & \$2{,}440\\ \hline
+Abdulrahman & \$20/hr & \$2{,}540\\ \hline
+Dr.\ Abdelkarem & \$40/hr & \$580\\ \hline
+\textbf{Total Human Cost} &  & \textbf{\$9{,}790}\\ \hline
+\end{tabular}
+\caption{Human Resources Cost Summary}
+\label{tab:hr-costs}
+\end{table}
+
+% ---------- MATERIALS (SOFTWARE & HARDWARE) ----------
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|>{\centering\arraybackslash}p{2cm}|
+                >{\raggedright\arraybackslash}p{10.4cm}|
+                >{\raggedleft\arraybackslash}p{2.2cm}|}
+\hline
+\multicolumn{3}{|c|}{\textbf{Materials}}\\ \hline
+\textbf{\#} & \textbf{Name} & \textbf{Cost}\\ \hline
+1 & Microsoft Project (subscription) & \$10\\ \hline
+2 & Android Test Phone (1 unit) & \$250\\ \hline
+3 & Other software/tools (ROS~2, Gazebo, Ubuntu, YOLO, OpenCV, GitHub, VS Code, Node.js{+}npm, MongoDB, React, Web hosting, Overleaf, Google Forms, Figma, Postman) & Free\\ \hline
+\textbf{Total Material Cost} &  & \textbf{\$260}\\ \hline
+\textbf{Net Total (Human + Materials)} &  & \textbf{\$10{,}050}\\ \hline
+\end{tabular}
+\caption{Materials Cost Summary}
+\label{tab:m-costs}
+\end{table}
+
+% --- Cost Overview ---
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{Project Planning/Cost_Overview.png}
+  \caption{Cost Overview: cumulative cost vs.\ percent complete.}
+  \label{fig:cost-overview}
+\end{figure}
+\FloatBarrier
+
+% --- Task Cost Overview ---
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=1.2\linewidth]{Project Planning/Task_Cost_Overview.png}
+    \includegraphics[width=0.5\linewidth]{Project Planning/Task_Cost_Overview_2.png}
+
+  \caption{Task Cost Overview for top-level tasks.}
+  \label{fig:task-cost-overview}
+\end{figure}
+\FloatBarrier
+
+\section{Risk List}
+
+\begin{enumerate}
+    \item Lack of the team members' experience in \ac{ROS2}/Gazebo may affect the project timeline.
+    \item Requirements may change later, which may affect the timeline of the project.
+    \item Integrating computer vision models (\ac{YOLO} + tracker) may take longer than expected and affect the schedule.
+    \item Toolchain/version mismatches (Ubuntu/\ac{ROS2}/Gazebo) may cause rework and delay.
+    \item Limited hardware/resources (e.g., \ac{GPU} performance or drone/Jetson access) may impact real-time testing and demos.
+    \item Web/Live View integration may slip and impact the planned demo scope.
+    
+    \item Dataset licensing/ethics concerns may restrict use of sample videos or figures.
+    \item Performance shortfall vs.\ NFRs (FPS, alert latency, re-acquire time) on student laptops may force scope cuts.
+    \item Browser/Android compatibility problems may break login, live view, or alerts during the demo.
+    \item Security misconfiguration (\ac{JWT}/\ac{RBAC}/\ac{TLS}) in the demo stack may expose admin actions or break access.
+
+\end{enumerate}
+
+
+\chapter{Project Analysis and Design}
+
+% ------------------------------------------------------------------
+\section{Use Case Diagram}
+% ------------------------------------------------------------------
+\noindent
+This section presents the overall use case diagram for the
+\textit{Security-Aware Human Tracking Drone}, summarizing the main
+actors and core system functionality (FR1--FR10).
+
+\begin{figure}[H]
+  \centering
+  % diagrams/UCD.pdf
+  \includegraphics[width=0.9\textwidth]{diagramsFINAL/UCD.pdf}
+  \caption{Overall system use case diagram.}
+  \label{fig:ucd_overall}
+\end{figure}
+
+
+
+\FloatBarrier
+
+% ------------------------------------------------------------------
+\section{Activity Diagrams}
+% ------------------------------------------------------------------
+\noindent
+This section presents activity diagrams for the most essential SAHTD use cases. Each diagram is modeled with two swimlanes (Actor vs.\ System) and reflects the implemented control and monitoring behavior without decomposing internal ROS~2 nodes into separate lanes.
+
+% ----------------- UC-01 ----------------
+\subsection{UC-01: User Login (Web)}
+\noindent
+Figure~\ref{fig:act_uc01_login} illustrates the login workflow used by the SAHTD dashboard.
+The User opens the login page, enters credentials, and submits the request. The System validates
+input format, applies attempt throttling / lock checks, and then verifies credentials. If validation
+fails, the System returns field errors; if attempts exceed limits, it blocks login and notifies the
+User. On successful authentication, the System issues a \ac{JWT} session with role claims and redirects
+the user to the authenticated dashboard view.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{diagramsFINAL/Activity/User Login (Web).pdf}
+  \caption{Activity diagram (UC-01) -- User login (web).}
+  \label{fig:act_uc01_login}
+\end{figure}
+
+% ----------------- UC-02 ----------------
+\subsection{UC-02: Detect People in Forward Camera}
+\noindent
+Figure~\ref{fig:act_uc02_detect} illustrates the implemented detection workflow from the forward camera.
+After the Operator launches the simulation and autonomy stack, the camera feed becomes available on the ROS~2
+image topic. The System runs a continuous detection loop, performs person inference, constructs detections
+(bounding boxes and confidence), and publishes the detections message. If the camera is offline/no signal,
+the System follows the exception path until the feed is available. If publishing fails, the System follows
+the failure branch and ends the cycle without producing a normal detections output.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{diagramsFINAL/Activity/Detect People in Forward Camera.pdf}
+  \caption{Activity diagram (UC-02) -- Detect people in forward camera.}
+  \label{fig:act_uc02_detect}
+\end{figure}
+
+% ----------------- UC-03 ----------------
+\subsection{UC-03: Designate Person to Follow}
+\noindent
+Figure~\ref{fig:act_uc03_designate} illustrates the target designation workflow used to select a person to follow.
+The Operator opens the target-selection UI and the System displays currently available tracked IDs. If no tracked
+IDs are available, the System displays ``No selectable targets'' and disables selection. When the Operator selects an
+ID and confirms, the System publishes \texttt{/perception/target\_select} with the chosen ID. The follower remains in
+\texttt{SEARCH} when the selected track is unavailable/unstable and transitions to \texttt{LOCKED} only when the selected
+track is present and stable; the System then updates the UI state and records the selection.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{diagramsFINAL/Activity/Designate Person to Follow.pdf}
+  \caption{Activity diagram (UC-03) -- Designate person to follow.}
+  \label{fig:act_uc03_designate}
+\end{figure}
+
+% ----------------- UC-06 ----------------
+\subsection{UC-06: Configure and Enforce Geo-fence}
+\noindent
+Figure~\ref{fig:act_uc06_geofence} illustrates the geo-fence enforcement workflow implemented by the geo-guard.
+The Operator provides or updates the geo-fence polygon configuration (YAML) and launches the stack. The System loads
+polygon vertices and margin thresholds, then continuously evaluates the drone pose against the boundary. When pose data
+is unavailable, the System enters a conservative hold behavior and publishes the corresponding reason. During normal
+operation, the System publishes \texttt{/gp2/guard/status} and \texttt{/gp2/guard/reason}, and enforces the boundary by
+overriding motion (clamping velocity) when the drone approaches the fence or violates it.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.9\textwidth]{diagramsFINAL/Activity/Configure and Enforce Geo-fence.pdf}
+  \caption{Activity diagram (UC-06) -- Configure and enforce geo-fence.}
+  \label{fig:act_uc06_geofence}
+\end{figure}
+
+\FloatBarrier
+
+
+% ------------------------------------------------------------------
+\section{Sequence Diagrams}
+% ------------------------------------------------------------------
+\noindent
+This section presents message-level interactions for the main runtime scenarios
+between the user, the SAHTD dashboard, the backend services, and the simulated
+autonomy stack.
+
+\subsection{Login Flow}
+\noindent
+Figure~\ref{fig:seq_login_flow} details the login sequence used by the web dashboard.
+The UI submits credentials to the backend, the backend queries the user record from the
+database and verifies the password and lock/throttle rules, then returns either a JWT
+(success) or an authentication error (failure). On success, the dashboard stores the token
+and proceeds to the authenticated view.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/Sequence/Login Flow.pdf}
+  \caption{Sequence diagram -- Login Flow.}
+  \label{fig:seq_login_flow}
+\end{figure}
+
+\subsection{Select Target}
+\noindent
+Figure~\ref{fig:seq_select_target} shows how the operator selects a tracked target from the UI.
+The dashboard calls the backend endpoint to select a target, the backend records the selection,
+and the system publishes the selected ID to the ROS~2 graph (\texttt{/perception/target\_select}).
+The UI receives a success response and updates the current selection.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/Sequence/Select Target.pdf}
+  \caption{Sequence diagram -- Select Target.}
+  \label{fig:seq_select_target}
+\end{figure}
+
+\subsection{Manual Override Commands}
+\noindent
+Figure~\ref{fig:seq_manual_override} illustrates manual override commands (Pause / Resume / \ac{RTL} / Land).
+The backend validates the \ac{JWT} and role (operator required). If unauthorized, the request is rejected.
+If authorized, the backend publishes the command to the ROS~2 graph, where the command executor applies
+the command, publishes an acknowledgment, and (when required) triggers the corresponding flight action
+while keeping offboard control alive.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/Sequence/Manual Override Commands.pdf}
+  \caption{Sequence diagram -- Manual Override Commands.}
+  \label{fig:seq_manual_override}
+\end{figure}
+
+\subsection{View Live Video}
+\noindent
+Figure~\ref{fig:seq_view_live_video} describes the live video monitoring sequence. The operator opens the
+Live View page, the dashboard requests the \ac{MJPEG} stream (\texttt{/video}), and the system serves continuous
+frames produced from the ROS~2 image pipeline (camera frames and tracking overlays). The UI displays the
+incoming stream while the autonomy stack continues running in parallel.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/Sequence/View Live Video.pdf}
+  \caption{Sequence diagram -- View Live Video.}
+  \label{fig:seq_view_live_video}
+\end{figure}
+
+\FloatBarrier
+
+
+% ------------------------------------------------------------------
+\section{State Chart Diagrams}
+% ------------------------------------------------------------------
+
+\subsection{Follow Node State Machine}
+\noindent
+Figure~\ref{fig:stm_follow_node} illustrates the state machine implemented inside the
+\texttt{follow\_node}. The node operates with two states: \texttt{SEARCH} and \texttt{LOCKED}.
+In \texttt{SEARCH}, the node publishes the \texttt{"SEARCH"} state and maintains a fixed-rate
+offboard keep-alive stream (20~Hz) while waiting for a valid target selection and sufficient
+tracking stability. Once the target becomes stable, the node transitions to \texttt{LOCKED}
+when the lock confidence reaches the configured threshold (\texttt{lock\_score $\ge$ lock\_k}).
+
+In \texttt{LOCKED}, the node latches the selected target and its latest bounding box, computes
+the required yaw rate and forward velocity commands to follow the target, applies geo-guard
+overrides when necessary, and continuously publishes body-frame velocity commands at 20~Hz.
+The node returns to \texttt{SEARCH} when lock confidence drops below the threshold
+(\texttt{lock\_score $<$ lock\_k}) or when the track becomes stale.
+
+\begin{figure}[H]
+  \centering
+  % diagramsFINAL/State/follow_node.pdf
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/State/follow_node.pdf}
+  \caption{State machine of \texttt{follow\_node} showing the implemented \texttt{SEARCH} and \texttt{LOCKED} states and the lock-based transitions.}
+  \label{fig:stm_follow_node}
+\end{figure}
+
+\subsection{Geo-Guard Node State Machine}
+\noindent
+Figure~\ref{fig:stm_geo_guard} shows the state machine implemented in \texttt{geo\_guard\_node},
+which enforces the polygonal geo-fence using a soft margin and an optional hard margin. The node
+publishes one of three statuses: \texttt{NORMAL}, \texttt{GEOGUARD\_HOLD}, or
+\texttt{GEOGUARD\_VIOLATION}.
+
+In \texttt{NORMAL}, the vehicle is safely inside the polygon with adequate clearance
+(\texttt{dist $>$ soft\_margin}). When the vehicle enters the soft margin region
+(\texttt{inside polygon} and \texttt{dist $\le$ soft\_margin}), the node transitions to
+\texttt{GEOGUARD\_HOLD} and clamps forward motion by overriding \texttt{vx = 0} while preserving
+lateral/vertical motion and yaw. If a violation condition is detected (outside the polygon or
+\texttt{dist $\le$ hard\_margin}), the node transitions to \texttt{GEOGUARD\_VIOLATION} and
+overrides \texttt{vx = vy = vz = 0} (full stop), while preserving yaw-only behavior.
+
+To avoid oscillation at the boundary, the node returns from \texttt{GEOGUARD\_HOLD} to
+\texttt{NORMAL} only when clearance increases beyond the soft margin and a minimum hold time has
+elapsed (\texttt{dist $>$ soft\_margin} and \texttt{min\_hold\_time} elapsed).
+
+\begin{figure}[H]
+  \centering
+  % diagramsFINAL/State/geo_guard_node
+  \includegraphics[width=0.98\textwidth]{diagramsFINAL/State/geo_guard_node.pdf}
+  \caption{State machine of \texttt{geo\_guard\_node} showing the implemented \texttt{NORMAL}, \texttt{GEOGUARD\_HOLD}, and \texttt{GEOGUARD\_VIOLATION} statuses and their transition conditions.}
+  \label{fig:stm_geo_guard}
+\end{figure}
+
+
+% ------------------------------------------------------------------
+\section{Design Class Diagram}
+% ------------------------------------------------------------------
+\noindent
+The class diagram presents the main software classes of SAHTD and their runtime interactions across perception, tracking, control, geo-fence enforcement, telemetry, and web integration. It shows how detections flow from \texttt{YoloDetNode} to \texttt{ByteTrackNode}, how motion commands are generated by \texttt{FollowNode} and executed through \texttt{CommandExecutor}, and how safety constraints are enforced by \texttt{GeoGuardNode}. Supporting classes handle telemetry export, event logging, and backend communication, providing a complete view of the system’s implemented software structure.
+
+
+\begin{figure}[H]
+  \centering
+  % diagramsFINAL/CD_SAHTD.pdf
+  \includegraphics[width=1.190\textwidth]{diagramsFINAL/CD_SAHTD.pdf}
+  \caption{Design class diagram -- Security-Aware Human Tracking Drone.}
+  \label{fig:class_sahtd}
+\end{figure}
+
+
+\FloatBarrier
+\newpage
+
+% ------------------------------------------------------------------
+\section{Component Diagram}
+% ------------------------------------------------------------------
+\noindent
+Figure~\ref{fig:component_diagram} summarizes the main software components and their interfaces.
+Camera frames are bridged from Gazebo/PX4 into ROS~2 by \texttt{ros\_gz\_bridge / ros\_gz\_image} and processed by
+\texttt{yolo\_node} and \texttt{bytetrack\_node} to publish detections and tracks. The \texttt{follow\_node} consumes
+\texttt{/perception/tracks} and exchanges offboard control and telemetry with \texttt{px4\_sitl (gz\_x500\_mono\_cam)}
+via MAVSDK/MAVLink. Safety enforcement is implemented by \texttt{geo\_guard\_node} (guard status/reason), while
+\texttt{telemetry\_bridge\_node} bridges system state and operator commands with the web layer.
+The operator interface is provided by \texttt{react\_frontend (vite build)} communicating with
+\texttt{fastapi\_backend (uvicorn)} over HTTPS REST/WebSocket, and the backend persists data via SQLAlchemy to
+\texttt{postgresql\_db} (primary) with \texttt{sqlite\_db} as a local fallback.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=1.10\textwidth]{diagramsFINAL/CD.pdf}
+  \caption{Component diagram -- System components and interfaces.}
+  \label{fig:component_diagram}
+\end{figure}
+
+\FloatBarrier
+\newpage
+
+
+% ------------------------------------------------------------------
+\section{Deployment Diagram}
+% ------------------------------------------------------------------
+\noindent
+Figure~\ref{fig:deployment_diagram} shows the physical deployment of SAHTD in its
+cloud-enabled demonstration mode. The system is distributed across three main nodes:
+(1) the \textbf{sahtd\_host} machine running the simulation and ROS~2 autonomy stack,
+(2) the \textbf{render\_cloud} environment hosting the web services, and
+(3) the \textbf{operator\_device} used to access the dashboard through a web browser.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{diagramsFINAL/DD.pdf}
+  \caption{Deployment diagram -- Hardware nodes and communication links.}
+  \label{fig:deployment_diagram}
+\end{figure}
+
+
+
+\FloatBarrier
+
+
+\newpage
+
+% ------------------------------------------------------------------
+\section{Input/Output Screens and Reports}
+% ------------------------------------------------------------------
+\noindent
+The following mobile UI mockups (Samsung Galaxy S form factor) are
+designed in Figma and represent the key input/output screens and
+reports that support the operator during missions.
+
+
+\subsection{Authentication and Session Management Screens}
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen A1 – Login.pdf
+  \includegraphics[width=0.4\textwidth]{diagramsFINAL/Input_Output/A1_Login.pdf}
+  \caption{Screen A1 -- Login screen for operator authentication.}
+  \label{fig:io_screen_a1_login}
+\end{figure}
+
+Screen A1 presents the entry point for the operator, featuring a secure login form that captures credentials to issue a session token. It is the implementation of UC-01, ensuring only authorized personnel access the drone controls.
+\FloatBarrier
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen A2 - Session.pdf
+  \includegraphics[width=0.6\textwidth]{diagramsFINAL/Input_Output/A2_Session.pdf}
+  \caption{Screen A2 -- Session overview and operator status.}
+  \label{fig:io_screen_a2_session}
+\end{figure}
+
+Screen A2 displays the active session details upon successful login. It confirms the user's role and connectivity status, providing a dashboard hub from which the operator can navigate to specific mission views like Live Stream or Map.
+\FloatBarrier
+
+\subsection{Live Video Feed and Target Selection Screens}
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen L1 Live.pdf
+  \includegraphics[width=0.4\textwidth]{diagramsFINAL/Input_Output/L1_Live.pdf}
+  \caption{Screen L1 -- Live video feed and mission \ac{HUD}.}
+  \label{fig:io_screen_l1_live}
+\end{figure}
+
+Screen L1 is the primary operational view, showing the real-time video stream from the drone. It overlays critical flight data (\ac{HUD}) and detection boxes, allowing the operator to monitor the environment and the tracked subject simultaneously.
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen L2 Target Selection.pdf
+  \includegraphics[width=0.4\textwidth]{diagramsFINAL/Input_Output/L2_Target_Selection.pdf}
+  \caption{Screen L2 -- Target selection and lock management.}
+  \label{fig:io_screen_l2_target}
+\end{figure}
+
+Screen L2 illustrates the target selection interface where the operator taps a bounded subject to designate them. It highlights the selected target visually and provides confirmation prompts to initiate the specific following mode.
+
+\subsection{Geo-Fence Map and Settings Screens}
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen M1 - Map & Geo-Fence Overview.pdf
+  \includegraphics[width=0.4\textwidth]{diagramsFINAL/Input_Output/M1_Map_and_Geo-Fence_Overview.pdf}
+  \caption{Screen M1 -- Map view and geo-fence overview.}
+  \label{fig:io_screen_m1_map}
+\end{figure}
+
+Screen M1 provides a top-down geographical view of the operation area. It displays the drone's position relative to the environment and visualizes active geo-fences, helping the operator assess spatial constraints and safety margins.
+
+\begin{figure}[H]
+  \centering
+  % Input_Output/Screen M2 – Geo-Fence Settings.pdf
+  \includegraphics[width=0.4\textwidth]{diagramsFINAL/Input_Output/M2_Geo-Fence_Settings.pdf}
+  \caption{Screen M2 -- Geo-fence configuration and settings.}
+  \label{fig:io_screen_m2_settings}
+\end{figure}
+
+Screen M2 allows the operator to define or modify restricted zones. Users can draw polygon vertices on the map to create no-fly zones, which the autonomy stack's Geo-Guard node will then rigorously enforce.
+
+\FloatBarrier
+
+
+\chapter{Implementation and Testing}
+% ---------------------------------------------------------
+\section{System Architecture}
+% ---------------------------------------------------------
+\noindent
+Figure~\ref{fig:system-architecture} illustrates the high-level architecture of the
+\textit{Security-Aware Human Tracking Drone (SAHTD)}. The system is structured into three lanes.
+The \textbf{Simulation} lane runs Gazebo Harmonic (\texttt{gz-sim8}) and \ac{PX4} \ac{SITL}
+(\texttt{gz\_x500\_mono\_cam}) to provide a realistic UAV model, sensor streams, and autopilot behavior.
+The \textbf{Autonomy (ROS~2)} lane ingests the simulated camera stream through
+\texttt{ros\_gz\_bridge/ros\_gz\_image} and publishes it as \texttt{/camera/image\_raw}. Perception is implemented
+as a pipeline where \texttt{yolo\_node} produces person detections (\texttt{/perception/detections}) and
+\texttt{bytetrack\_node} assigns persistent IDs by publishing tracks (\texttt{/perception/tracks}).
+Based on the selected target, \texttt{follow\_node} computes body-frame velocity and yaw-rate commands and drives
+\ac{PX4} in offboard mode via \ac{MAVSDK}, while also consuming telemetry (local pose/status) required for control
+and monitoring. Safety enforcement is handled by \texttt{geo\_guard\_node}, which monitors the local pose and the
+command stream and issues guard status/reason messages while clamping motion when the geo-fence boundary is approached
+or violated.
+
+The \textbf{Web System (Local/Render Cloud)} lane enables authenticated operator interaction and remote monitoring.
+A dedicated \texttt{telemetry\_bridge\_node} connects ROS~2 to the web backend by forwarding state/telemetry upward
+and receiving operator commands downward over HTTP/WebSocket. The FastAPI backend provides JWT-based authentication
+and command endpoints, and exposes real-time WebSocket channels consumed by the React operator dashboard for login,
+target designation, and live status/alerts. Persistence is managed through SQLAlchemy with the database selected at
+runtime: local development uses an embedded SQLite database (\texttt{data/db/sahtd.db}), while deployment uses a
+managed PostgreSQL instance hosted on \textbf{Render} and configured via \texttt{DATABASE\_URL}.
+
+\begin{figure}[!htbp]
+  \centering
+  \includegraphics[width=1.00\linewidth]{diagramsFINAL/System_Arch.pdf}
+  \caption{High-level SAHTD system architecture showing simulation, autonomy (ROS~2), and web system lanes.}
+  \label{fig:system-architecture}
+\end{figure}
+\FloatBarrier
+
+
+
+% =========================
+% 5.2 Description of Technologies Used
+% =========================
+\section{Description of Technologies Used}
+
+The SAHTD prototype is implemented as two cooperating lanes: (1) a simulation \& autonomy lane that runs the drone simulation, perception, tracking, and follow control, and (2) a web system lane that provides authenticated operator interaction (login, target selection, commands) and real-time telemetry/alerts. The stack was selected to be reproducible on Ubuntu, compatible with ROS~2 Humble, and suitable for real-time perception and control in a \ac{PX4} \ac{SITL} environment. For deployment, the web backend, frontend, and managed database are hosted on \textbf{Render}, enabling remote access and stable service hosting during demonstrations.
+
+% --- make this table fit in portrait (safe longtable preamble) ---
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+\LTcenter
+
+\begin{longtable}{@{}L{0.24\textwidth} C{0.14\textwidth} L{0.58\textwidth}@{}}
+\caption{Technologies used in the SAHTD prototype.}\label{tab:tech_stack}\\
+\toprule
+\textbf{Technology} & \textbf{Version} & \textbf{Purpose / Why Used} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{Technology} & \textbf{Version} & \textbf{Purpose / Why Used} \\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{3}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+% --- rows here ---
+Ubuntu (Host OS) & 22.04 LTS & Stable Linux environment compatible with \ac{ROS2} Humble and GPU drivers. \\
+\ac{ROS2} & Humble Hawksbill & Middleware for modular robotics development (topics/services, nodes, message types). \\
+Gazebo Sim & 8 (Harmonic) & Physics-based simulation environment for the drone and human models. \\
+\ac{PX4} \ac{SITL} & main branch & Autopilot software-in-the-loop used for realistic flight control behavior. \\
+\ac{MAVSDK} (Python) & pip package & High-level MAVLink interface to drive \ac{PX4} offboard control safely. \\
+Python & 3.10+ & Main implementation language for ROS nodes and backend services. \\
+Ultralytics YOLO & YOLOv8n & Real-time person detection from the simulated camera stream. \\
+ByteTrack & integration & Multi-object tracking to assign persistent IDs across frames. \\
+OpenCV & system package & Image processing utilities and ROS image conversions. \\
+NumPy & pinned compatible & Efficient numerical operations required by perception and tracking. \\
+PyTorch & GPU/CPU build & Deep learning runtime used to execute YOLO inference. \\
+FastAPI & backend framework & REST + \ac{WebSocket} backend for operator commands and live telemetry/alerts. \\
+Uvicorn & ASGI server & Production-grade ASGI server to run the FastAPI application. \\
+JWT (PyJWT) & library & Issues signed tokens for authenticated sessions and role claims. \\
+bcrypt & library & Secure password hashing for user credentials. \\
+React & frontend framework & Operator dashboard for login, target selection, and monitoring. \\
+Vite & build tool & Frontend development server and production build pipeline. \\
+vision\_msgs & ROS message set & Standardized ROS message types for 2D detections and tracks. \\
+Render (Cloud Hosting) & Platform (PaaS) & Hosts the deployed web system services (backend API, frontend site) and managed database for the SAHTD web lane. \\
+PostgreSQL (Managed DB) & 18 & Managed relational database used by the deployed backend on Render for authentication/authorization data persistence. \\
+SQLAlchemy ORM & library & Database abstraction layer used by the backend to interact with SQLite (local) or PostgreSQL (deployed) using a consistent model. \\
+
+
+
+\end{longtable}
+\endgroup
+
+
+
+
+
+% ---------------------------------------------------------
+\section{Problems or Challenges During System Implementation}
+% ---------------------------------------------------------
+
+Implementing SAHTD presented several practical challenges because the system is both real-time and multi-component. First, hardware limitations (CPU/GPU) affected the perception pipeline throughput; when YOLO inference slowed, detection and tracking updates became stale, which reduced following smoothness and overall responsiveness. Second, tracking stability was sensitive to scale and viewpoint changes: as the target’s bounding box size changed with altitude or distance, identity switches (ID flicker) became more likely, requiring careful tuning and robust target-lock behavior in the follower. Third, end-to-end integration was non-trivial because SAHTD combines Gazebo simulation, \ac{PX4} \ac{SITL} autopilot, ROS~2 autonomy nodes, \ac{MAVSDK} offboard control, and a web interface; maintaining consistent rates, timing assumptions, and reliable communication across these layers required repeated debugging.
+
+In addition, coordinate-frame differences (\ac{NED} in \ac{PX4} versus \ac{ENU} conventions commonly used in ROS) required correct conversions to ensure geo-guard enforcement and status logic behaved as intended. Another challenge was maintaining offboard control stability: the autopilot requires steady command updates, so the system needed a continuous control loop even when waiting for target lock or during brief perception dropouts. Finally, deploying the web system on \textbf{Render} introduced practical DevOps considerations such as environment configuration (\texttt{DATABASE\_URL} and secrets), service availability when instances suspend, and network access patterns for remote monitoring and command delivery. A dedicated mobile application and full production hardening (advanced TLS/zero-trust networking, device packaging, and cross-device compatibility) remain future work beyond this phase.
+
+
+
+% -------------------- 5.X Functional Test Cases --------------------
+\section{Functional Test Cases}
+This section presents functional test cases executed on the SAHTD prototype in the Gazebo/\ac{PX4} \ac{SITL} simulation environment. The test cases validate the implemented functional requirements (FRs) by checking API responses, ROS~2 topic behavior, controller state transitions, and geo-guard enforcement. The \textit{Actual Output} column summarizes the observed results during execution.
+
+\begin{landscape}
+\begingroup
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.10}
+\LTcenter
+
+\begin{longtable}{@{}L{1.6cm} L{2.6cm} L{5.2cm} L{5.2cm} L{5.2cm} C{1.4cm}@{}}
+\caption{Functional test cases for the SAHTD prototype.}\label{tab:functional_test_cases}\\
+\toprule
+\textbf{TC-ID} & \textbf{FR/NFR} & \textbf{Input / Steps} & \textbf{Expected Output} & \textbf{Actual Output} & \textbf{Result}\\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{TC-ID} & \textbf{FR/NFR} & \textbf{Input / Steps} & \textbf{Expected Output} & \textbf{Actual Output} & \textbf{Result}\\
+\midrule
+\endhead
+
+\midrule
+\multicolumn{6}{r}{\textit{Continued on next page}}\\
+\endfoot
+
+\bottomrule
+\endlastfoot
+
+TC-01 & FR-AUTH-01 &
+POST \texttt{/auth/login} with valid \{\texttt{email}, \texttt{password}\}. &
+HTTP 200; returns JWT and role. &
+HTTP 200; JSON returns \texttt{access\_token}, \texttt{token\_type}, \texttt{role}. &
+\statusPass \\
+
+TC-02 & FR-AUTH-01 &
+POST \texttt{/auth/login} with incorrect password. &
+HTTP 401 Unauthorized. &
+HTTP 401 with \texttt{"detail":"Invalid email or password"}. &
+\statusPass \\
+
+TC-03 & FR-AUTH-02 &
+Login as operator; GET \texttt{/auth/users}. &
+Operator can list users (HTTP 200). &
+HTTP 200; users returned with roles and active flags. &
+\statusPass \\
+
+TC-04 & FR-AUTH-02 &
+Login as viewer; GET \texttt{/auth/users}. &
+Viewer blocked by RBAC (HTTP 403). &
+HTTP 403 with \texttt{"detail":"Role 'operator' required"}. &
+\statusPass \\
+
+TC-05 & FR-AUTH-03 &
+Operator POST \texttt{/auth/users} to create a new user. &
+User created and persisted. &
+HTTP 200/201; new user appears in subsequent list. &
+\statusPass \\
+
+TC-06 & FR-AUTH-04 &
+Operator PATCH \texttt{/auth/users/\{id\}} to disable user or change password/role. &
+Account updated; previous tokens revoked. &
+HTTP 200; old token rejected with revocation detail. &
+\statusPass \\
+
+TC-07 & FR-UI-01 &
+Login; open dashboard; observe connection state. &
+UI loads, shows system status, accepts commands. &
+Dashboard loads and shows live state panels. &
+\statusPass \\
+
+TC-08 & FR-SELECT-01 &
+Operator selects a target ID from UI (or POST \texttt{/cmd/select}). &
+Selected ID published to ROS topic \texttt{/perception/target\_select}. &
+\texttt{/perception/target\_select} updated with chosen ID. &
+\statusPass \\
+
+TC-09 & FR-DETECT-01 &
+Run simulation with camera enabled and start YOLO node. &
+\texttt{/perception/detections} publishes person detections. &
+Detections observed; bounding boxes appear in debug overlay. &
+\statusPass \\
+
+TC-10 & FR-TRACK-01 &
+Start ByteTrack node with YOLO detections. &
+\texttt{/perception/tracks} publishes stable track IDs. &
+Track IDs observed; \texttt{/perception/seen\_ids} updates. &
+\statusPass \\
+
+TC-11 & FR-FOLLOW-01 &
+Select a target and start follow node (\ac{MAVSDK} offboard). &
+Follower enters LOCKED state and commands motion. &
+Follower transitions SEARCH$\rightarrow$LOCKED; motion commands published. &
+\statusPass \\
+
+TC-12 & FR-FOLLOW-02 &
+Move target to the right side of the camera frame. &
+Controller yaws right to re-center target. &
+Yaw-rate command increases to the right; target recenters over time. &
+\statusPass \\
+
+TC-13 & FR-FOLLOW-02 &
+Move target to the left side of the camera frame. &
+Controller yaws left to re-center target. &
+Yaw-rate command increases to the left; target recenters over time. &
+\statusPass \\
+
+TC-14 & FR-FOLLOW-03 &
+Target far (small bbox height). &
+Forward velocity increases to reduce distance. &
+Positive forward command observed until stand-off region. &
+\statusPass \\
+
+TC-15 & FR-FOLLOW-03 &
+Target too close (large bbox height / NEAR zone). &
+Back-off or stop to maintain safe distance. &
+Negative/zero forward command observed; safety clamp respected. &
+\statusPass \\
+
+TC-16 & FR-GUARD-01 &
+Enable geo-guard and approach fence boundary. &
+Forward motion clamped to 0 at fence; status changes. &
+\texttt{/gp2/guard/status} shows HOLD/VIOLATION; vx overridden to 0. &
+\statusPass \\
+
+TC-17 & FR-GUARD-02 &
+Exit the fence region after hold. &
+System returns to NORMAL and motion resumes. &
+Status returns NORMAL; follower motion resumes. &
+\statusPass \\
+
+TC-18 & FR-ALERT-01 &
+Trigger an alert condition (e.g., target lost timeout). &
+Alert emitted to UI/backend channel. &
+Alert message observed on UI (or WS alerts). &
+\statusPass \\
+
+TC-19 & FR-OVERRIDE-01 &
+Use pause command from UI/backend. &
+Follower stops sending motion (holds). &
+Cmd becomes zero/hold; state shows paused/hold. &
+\statusPass \\
+
+TC-20 & FR-OVERRIDE-02 &
+Use resume command after pause. &
+Follower resumes follow behavior. &
+State returns to LOCKED; commands non-zero when needed. &
+\statusPass \\
+
+TC-21 & FR-E2E-01 &
+Run full pipeline: camera $\rightarrow$ detect $\rightarrow$ tracks $\rightarrow$ select $\rightarrow$ follow $\rightarrow$ geo-guard $\rightarrow$ alert $\rightarrow$ UI. &
+End-to-end flow works with consistent state updates. &
+Observed full sequence in demo; UI reflects state and events. &
+\statusPass \\
+
+\end{longtable}
+
+\endgroup
+\end{landscape}
+
+% ============================================================================
+% 5.5 Database Mapping (Schema Diagram)
+% ============================================================================
+\section{Database Mapping (Schema Diagram)}
+SAHTD uses a relational database for the web lane to persist authentication/authorization data and to store system events for auditing and operational traceability. The backend implements the database layer using SQLAlchemy \ac{ORM}, enabling a consistent data model across both local development and deployed environments.
+
+\textbf{Local vs. Cloud Deployment:}
+\begin{itemize}
+    \item \textbf{Local development / offline runs:} when \texttt{DATABASE\_URL} is not provided, the backend falls back to a local SQLite database located at \texttt{\$SAHTD\_ROOT/data/db/sahtd.db}. This supports fast setup and reproducible testing without external dependencies.
+    \item \textbf{Deployed environment (Render):} when deployed, \texttt{DATABASE\_URL} is provided by Render and points to a managed PostgreSQL instance. A compatibility fix is applied to normalize the URL scheme (\texttt{postgres://} $\rightarrow$ \texttt{postgresql://}) before initializing SQLAlchemy.
+\end{itemize}
+
+\textbf{Current Schema Mapping:}
+The database currently includes two normalized tables:
+
+\begin{itemize}
+    \item \textbf{Table 1: \texttt{users}} (Authentication \& RBAC)
+    \begin{itemize}
+        \item \textbf{Primary Key:} \texttt{id} (Integer, auto-increment)
+        \item \textbf{Columns:} \texttt{id}, \texttt{email}, \texttt{password\_hash}, \texttt{role}, \texttt{is\_active}, \texttt{token\_version}, \texttt{created\_at}, \texttt{last\_login\_at}, \texttt{failed\_attempts}, \texttt{locked\_until}
+        \item \textbf{Key Constraints:} unique \texttt{email}; indexes on \texttt{id} and \texttt{email}
+        \item \textbf{Purpose:} stores user accounts and role claims (e.g., \texttt{operator} vs. \texttt{viewer}). The \texttt{token\_version} field supports application-level JWT revocation by invalidating previously issued tokens when incremented.
+    \end{itemize}
+
+    \item \textbf{Table 2: \texttt{events}} (Operational Event Store)
+    \begin{itemize}
+        \item \textbf{Primary Key:} \texttt{id} (Integer, auto-increment)
+        \item \textbf{Columns:} \texttt{id}, \texttt{ts}, \texttt{event\_type}, \texttt{severity}, \texttt{source}, \texttt{target\_id}, \texttt{session\_id}, \texttt{payload}, \texttt{created\_at}
+        \item \textbf{Key Constraints:} indexes on \texttt{ts}, \texttt{event\_type}, and \texttt{source}
+        \item \textbf{Purpose:} persists alert and status events (e.g., guard status transitions, command acknowledgments, and target state changes) to support debugging, auditing, and post-run analysis. The \texttt{payload} field stores the full event data as JSON (JSONB in PostgreSQL, JSON in SQLite).
+    \end{itemize}
+\end{itemize}
+
+\textbf{Entity-Relationship Summary:}
+In the current phase, \texttt{users} and \texttt{events} are independent tables with no enforced foreign-key relationship. Events may optionally reference a \texttt{target\_id} and \texttt{session\_id} for correlation, but the schema avoids tight coupling to keep the event store flexible for future extensions.
+
+% ============================================================================
+% 5.6 Table Description
+% ============================================================================
+\section{Tables Descriptions}
+This section describes the columns of the database tables used by the SAHTD web lane.
+
+% -------------------- Users Table --------------------
+\begingroup
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.15}
+
+\begin{table}[H]
+\centering
+\caption{Users table column specifications.}
+\label{tab:users_table}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm} L{2.8cm} Y L{3.2cm}@{}}
+\toprule
+\textbf{Column Name} & \textbf{Data Type} & \textbf{Description} & \textbf{Constraints} \\
+\midrule
+id & INTEGER & Unique identifier for each user account & PK, Auto-increment \\
+email & VARCHAR(255) & Login email address (username) & UNIQUE, NOT NULL, Indexed \\
+password\_hash & VARCHAR(255) & bcrypt-hashed password & NOT NULL \\
+role & VARCHAR(50) & Role claim (e.g., \texttt{operator}, \texttt{viewer}) & NOT NULL, Default: \texttt{viewer} \\
+is\_active & BOOLEAN & Account enabled/disabled flag & NOT NULL, Default: TRUE \\
+token\_version & INTEGER & Token revocation counter for JWT invalidation & NOT NULL, Default: 0 \\
+created\_at & DATETIME & Account creation timestamp & NOT NULL \\
+last\_login\_at & DATETIME & Last successful login timestamp & NULL \\
+failed\_attempts & INTEGER & Consecutive failed login counter & NOT NULL, Default: 0 \\
+locked\_until & DATETIME & Account lock expiry timestamp & NULL \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% -------------------- Events Table --------------------
+\begin{table}[H]
+\centering
+\caption{Events table column specifications.}
+\label{tab:events_table}
+\begin{tabularx}{\textwidth}{@{}L{2.8cm} L{2.8cm} Y L{3.2cm}@{}}
+\toprule
+\textbf{Column Name} & \textbf{Data Type} & \textbf{Description} & \textbf{Constraints} \\
+\midrule
+id & INTEGER & Unique identifier for each stored event & PK, Auto-increment \\
+ts & DATETIME(TZ) & Event timestamp (source time) & NOT NULL, Indexed \\
+event\_type & VARCHAR(100) & Event type identifier (e.g., GUARD\_VIOLATION) & NOT NULL, Indexed \\
+severity & VARCHAR(20) & Severity label (INFO/WARN/ERROR/CRITICAL) & NULL \\
+source & VARCHAR(100) & Component/source producing the event & NULL, Indexed \\
+target\_id & INTEGER & Optional associated target identifier & NULL \\
+session\_id & VARCHAR(100) & Optional session correlation identifier & NULL \\
+payload & JSONB/JSON & Full event payload for debugging/audit & NULL \\
+created\_at & DATETIME(TZ) & Database insertion time & NOT NULL, Default: NOW \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\endgroup
+
+\textbf{Purpose and Rationale:}
+The \texttt{users} table provides a compact and secure authentication store with RBAC support and JWT revocation via \texttt{token\_version}. The \texttt{events} table complements this by persisting operational events and alerts, enabling traceability of runtime behavior during demonstrations and testing. Using SQLAlchemy with a configurable \texttt{DATABASE\_URL} allows the same backend codebase to run locally (SQLite) or in deployment (Render PostgreSQL) without schema changes.
+
+
+
+
+\FloatBarrier
+% ============================================================================
+\section{Development of Major Functions}
+This section presents algorithm descriptions for the five core autonomous functions implemented in the SAHTD system. Each algorithm is specified in terms of inputs, outputs, preconditions, main processing steps, and safety considerations, abstracted from the \ac{ROS2} node implementations.
+% ----------------------------------------------------------------------------
+\subsection{Algorithm 1: Person Detection Pipeline (YOLO Node)}
+\textbf{Purpose:} Real-time detection of human targets in the camera image stream using YOLOv8 deep learning model.
+\textbf{Inputs:}
+\begin{itemize}
+    \item Camera image stream (topic: \texttt{/camera/image\_raw}, \ac{RGB} format)
+    \item Detection confidence threshold (default: 0.25)
+    \item Input image size for inference (default: 416×416 pixels)
+\end{itemize}
+\textbf{Outputs:}
+\begin{itemize}
+    \item Detection array (topic: \texttt{/perception/detections})
+    \item Each detection contains: bounding box (center x, center y, width, height), confidence score, class label
+\end{itemize}
+\textbf{Preconditions:}
+\begin{itemize}
+    \item YOLOv8 model weights loaded and initialized
+    \item Camera stream is active and publishing images
+\end{itemize}
+\textbf{Main Steps:}
+\begin{enumerate}
+    \item \textbf{Image Subscription:} Receive latest \ac{RGB} image from camera topic (non-blocking callback stores reference only)
+    \item \textbf{Worker Thread Processing:}
+    \begin{itemize}
+        \item Retrieve latest image from thread-safe buffer
+        \item Compute image age using ROS timestamp comparison
+        \item If age exceeds maximum threshold (250ms default), discard frame and increment drop counter
+        \item Convert image from ROS message format to OpenCV \ac{BGR} array
+    \end{itemize}
+    \item \textbf{YOLO Inference:}
+    \begin{itemize}
+        \item Resize image to inference resolution using letterbox transformation (preserves aspect ratio)
+        \item Execute YOLOv8 forward pass (class filter: person only)
+        \item Extract bounding boxes with confidence above threshold
+    \end{itemize}
+    \item \textbf{Output Formatting:}
+    \begin{itemize}
+        \item For each detection, construct message with:
+        \begin{itemize}
+            \item Bounding box center coordinates (in original image coordinate frame)
+            \item Bounding box width and height
+            \item Confidence score and class identifier
+        \end{itemize}
+        \item Publish detection array to perception topic
+        \item Publish detection count for monitoring
+    \end{itemize}
+    \item \textbf{Performance Monitoring:} Update and log processing statistics (inference time, output frame rate, dropped frame count) at 1 Hz
+\end{enumerate}
+\textbf{Key Safety and Edge Cases:}
+\begin{itemize}
+    \item Frame dropping prevents queue backlog from degrading real-time performance
+    \item Worker thread architecture isolates heavy inference from ROS callback thread, preventing message loss
+    \item Age-based filtering ensures stale detections are never propagated downstream
+\end{itemize}
+% ----------------------------------------------------------------------------
+\subsection{Algorithm 2: Multi-Object Tracking and ID Persistence (ByteTrack Node)}
+\textbf{Purpose:} Associate detection bounding boxes across frames to assign persistent track IDs, enabling target selection and following.
+\textbf{Inputs:}
+\begin{itemize}
+    \item Detection array from YOLO node (topic: \texttt{/perception/detections})
+    \item Tracking parameters: match threshold, track buffer, minimum box area
+\end{itemize}
+\textbf{Outputs:}
+\begin{itemize}
+    \item Track array (topic: \texttt{/perception/tracks}), each with persistent ID, bounding box, and age
+    \item Seen IDs string for HUD display
+\end{itemize}
+\textbf{Preconditions:}
+\begin{itemize}
+    \item Detection stream is active
+    \item ByteTrack core algorithm is initialized
+\end{itemize}
+\textbf{Main Steps:}
+\begin{enumerate}
+    \item \textbf{Detection Reception:} Receive detection array message and extract timestamp
+    \item \textbf{Adapter Conversion:} Transform ROS detection messages to internal tracking representation (bbox, score, class)
+    \item \textbf{Frame Rate Monitoring:}
+    \begin{itemize}
+        \item Compute inter-frame time delta
+        \item Update exponential moving average of detection FPS
+        \item If FPS drops below minimum threshold (10 Hz default), switch to degraded IoU-only mode
+        \item If FPS recovers, return to full ByteTrack algorithm
+    \end{itemize}
+    \item \textbf{Tracking Update (Normal Mode):}
+    \begin{itemize}
+        \item Predict track positions using motion model
+        \item Match high-confidence detections (score $>$ 0.5) to existing tracks using IoU metric
+        \item Match remaining low-confidence detections (score $>$ 0.1) to unmatched tracks
+        \item Create new tracks for unmatched detections
+        \item Increment age for confirmed tracks; delete tracks exceeding maximum age without detection
+    \end{itemize}
+    \item \textbf{Tracking Update (Degraded Mode):}
+    \begin{itemize}
+        \item Use greedy IoU matching between current detections and previous frame tracks
+        \item Assign new IDs to unmatched detections
+        \item Maintain track continuity within IoU threshold
+    \end{itemize}
+    \item \textbf{Output Generation:}
+    \begin{itemize}
+        \item Convert internal track representation back to ROS detection messages with track IDs embedded in class field
+        \item Publish track array
+        \item Publish comma-separated list of visible track IDs for operator display
+    \end{itemize}
+\end{enumerate}
+\textbf{Key Safety and Edge Cases:}
+\begin{itemize}
+    \item Degraded mode ensures tracking continuity even when detection latency increases
+    \item Minimum box area filtering prevents noise from generating spurious IDs
+    \item Track age limit prevents unbounded memory growth from lingering IDs
+\end{itemize}
+% ----------------------------------------------------------------------------
+\subsection{Algorithm 3: Target Selection and Propagation}
+\textbf{Purpose:} Enable authorized operator to designate a specific tracked human as the follow target, propagating selection through ROS communication.
+\textbf{Inputs:}
+\begin{itemize}
+    \item Operator selection request via web UI (HTTP POST with target ID)
+    \item User credentials and role from JWT authentication
+\end{itemize}
+\textbf{Outputs:}
+\begin{itemize}
+    \item Target ID message (topic: \texttt{/perception/target\_select}, Integer message type)
+    \item Selection event logged to audit file
+\end{itemize}
+\textbf{Preconditions:}
+\begin{itemize}
+    \item User is authenticated with operator role
+    \item Target ID exists in current track list
+\end{itemize}
+\textbf{Main Steps:}
+\begin{enumerate}
+    \item \textbf{Authorization Check:}
+    \begin{itemize}
+        \item Extract JWT from HTTP Authorization header
+        \item Validate token signature and expiration
+        \item Query user from database using email claim
+        \item Verify user role equals ``operator'' (reject if viewer)
+        \item Verify token version matches database value (reject if revoked)
+    \end{itemize}
+    \item \textbf{Selection Logging:}
+    \begin{itemize}
+        \item Generate UTC timestamp
+        \item Create event record with type TARGET\_SELECT, user email, selected ID
+        \item Append event to structured log file
+    \end{itemize}
+    \item \textbf{ROS Topic Publication:}
+    \begin{itemize}
+        \item Construct Integer message with selected target ID
+        \item Publish message to target selection topic using subprocess invocation of \ac{ROS2} \ac{CLI}
+        \item Return success/failure status to web client
+    \end{itemize}
+    \item \textbf{Follow Node Reception:}
+    \begin{itemize}
+        \item Follow controller subscribes to target selection topic
+        \item Upon receiving message, update internal selected ID variable
+        \item Reset lock score and target visibility state machine
+        \item Begin processing track messages for selected ID
+    \end{itemize}
+\end{enumerate}
+\textbf{Key Safety and Edge Cases:}
+\begin{itemize}
+    \item Role-based access control prevents unauthorized target designation
+    \item Event logging creates audit trail for post-mission analysis
+    \item Token revocation mechanism enables immediate permission withdrawal
+\end{itemize}
+% ----------------------------------------------------------------------------
+\subsection{Algorithm 4: Offboard Follow Control (Follow Node)}
+\textbf{Purpose:} Compute and execute body-frame velocity commands to maintain visual track of selected target using image-based servoing.
+\textbf{Inputs:}
+\begin{itemize}
+    \item Track array from ByteTrack node (topic: \texttt{/perception/tracks})
+    \item Selected target ID from operator (topic: \texttt{/perception/target\_select})
+    \item Drone telemetry (position, altitude, in-air status) via \ac{MAVSDK}
+    \item Geo-fence guard status (topic: \texttt{/gp2/guard/status})
+\end{itemize}
+\textbf{Outputs:}
+\begin{itemize}
+    \item Body velocity command (topic: \texttt{/sahtd/follow/cmd\_body}): forward (vx), lateral (vy), vertical (vz), yaw rate
+    \item Velocity commands transmitted to \ac{PX4} autopilot via \ac{MAVSDK} offboard mode
+\end{itemize}
+\textbf{Preconditions:}
+\begin{itemize}
+    \item Drone is armed and in offboard flight mode
+    \item Target ID has been selected and is visible in current frame
+    \item \ac{MAVSDK} connection to \ac{PX4} autopilot is active
+\end{itemize}
+\textbf{Main Steps:}
+\begin{enumerate}
+    \item \textbf{Target Filtering:}
+    \begin{itemize}
+        \item For each track in received array, extract track ID
+        \item Match track ID against selected target ID
+        \item Extract bounding box center x-coordinate and height for matched track
+        \item If no match or track age exceeds staleness threshold (0.75s), mark target as lost
+    \end{itemize}
+    \item \textbf{Yaw Control (Image-Based Centering):}
+    \begin{itemize}
+        \item Compute horizontal error: \textit{ex} = (target\_cx - frame\_center) / (frame\_width / 2)
+        \item Apply low-pass filter to error: \textit{ex\_filtered} = (1 - $\alpha$) * ex\_filtered\_prev + $\alpha$ * ex
+        \item Compute proportional-derivative yaw rate: yaw\_rate = k\_p * ex\_filtered + k\_d * (ex\_filtered - ex\_filtered\_prev) / dt
+        \item Apply deadzone: if |ex| $<$ deadzone\_threshold, set yaw\_rate = 0
+        \item Clamp yaw\_rate to maximum allowable rate (0.5 rad/s default)
+        \item Apply slew rate limit for smooth acceleration
+    \end{itemize}
+    \item \textbf{Forward Range Control (Bbox Height Regulation):}
+    \begin{itemize}
+        \item Apply low-pass filter to bounding box height: h\_filtered
+        \item Compute range error: eR = stand\_off\_height - h\_filtered
+        \item If target stationary (bbox height velocity $<$ threshold), increase stand-off distance
+        \item Classify zone: FAR (h $<$ 150px), HOVER (150-220px), NEAR (h $>$ 220px)
+        \item Compute proportional forward velocity: vx = k\_x * eR
+        \item If zone is NEAR, apply back-off command (negative vx)
+        \item If zone is HOVER and yaw centered, set vx = 0
+        \item Apply progressive speed reduction as target approaches
+        \item If proximity brake zone active (h $>$ 200px), clamp vx to low limit (0.1 m/s)
+        \item Apply slew rate limit for smooth acceleration/deceleration
+    \end{itemize}
+
+    \item \textbf{Geo-Fence Integration:}
+    \begin{itemize}
+        \item Read latest geo-fence status message
+        \item If status is GEOGUARD\_HOLD, override vx = 0 (stop forward motion)
+        \item If status is GEOGUARD\_VIOLATION, override vx = vy = vz = 0 (full stop)
+    \end{itemize}
+    \item \textbf{Command Execution:}
+    \begin{itemize}
+        \item Construct body velocity message: (vx, 0, 0, yaw\_rate)
+        \item Publish command to ROS topic for logging and monitoring
+        \item Transmit command to \ac{PX4} via \ac{MAVSDK} offboard API
+        \item Execute control loop at fixed 20 Hz rate
+    \end{itemize}
+\end{enumerate}
+\textbf{Key Safety and Edge Cases:}
+\begin{itemize}
+    \item Target lost detection triggers hover mode after 1-second timeout
+    \item Slew rate limits prevent abrupt accelerations that could destabilize flight
+    \item Geo-fence integration provides hard override to prevent boundary violations
+
+    \item Progressive speed reduction and proximity braking prevent collisions with stationary targets
+\end{itemize}
+% ----------------------------------------------------------------------------
+\subsection{Algorithm 5: Geo-Fence Enforcement and Motion Clamping (Geo-Guard)}
+\textbf{Purpose:} Monitor drone position relative to a defined polygonal boundary and override velocity commands to prevent geo-fence violations.
+\textbf{Inputs:}
+\begin{itemize}
+    \item Polygon vertices loaded from YAML configuration file
+    \item Soft margin threshold (0.8m default) and hard margin threshold (optional)
+    \item Drone pose (topic: \texttt{/gp2/vehicle/pose\_local}, \ac{ENU} coordinates)
+    \item Follow controller velocity command (topic: \texttt{/sahtd/follow/cmd\_body})
+\end{itemize}
+\textbf{Outputs:}
+\begin{itemize}
+    \item Guard status (topic: \texttt{/gp2/guard/status}): NORMAL, GEOGUARD\_HOLD, GEOGUARD\_VIOLATION
+    \item Override velocity command (republished to same topic as follow node)
+    \item Debug telemetry: distance to fence, inside/outside status, nearest edge index
+\end{itemize}
+\textbf{Preconditions:}
+\begin{itemize}
+    \item Fence polygon contains at least 3 vertices
+    \item Drone pose stream is active and reporting \ac{ENU} coordinates
+    \item Soft margin $\geq$ hard margin (if hard margin enabled)
+\end{itemize}
+\textbf{Main Steps:}
+\begin{enumerate}
+    \item \textbf{Polygon Loading and Validation:}
+    \begin{itemize}
+        \item Load vertices from YAML configuration
+        \item Parse flat coordinate array into (x, y) vertex pairs
+        \item Verify polygon contains at least 3 vertices
+        \item Validate margin parameters: soft\_margin $\geq$ hard\_margin $\geq$ 0
+    \end{itemize}
+    \item \textbf{Position Monitoring:}
+    \begin{itemize}
+        \item Subscribe to drone pose topic (\ac{ENU} frame)
+        \item Extract x and y coordinates (horizontal plane; ignore z for 2D fence)
+    \end{itemize}
+    \item \textbf{Geometric Classification:}
+    \begin{itemize}
+        \item Apply point-in-polygon ray-casting algorithm to determine inside/outside status
+        \item For each polygon edge, compute distance from drone position to line segment
+        \item Identify nearest edge and minimum distance to fence boundary
+    \end{itemize}
+    \item \textbf{State Determination:}
+    \begin{itemize}
+        \item If drone is outside polygon: state = GEOGUARD\_VIOLATION
+        \item Else if distance to boundary $\leq$ soft\_margin: state = GEOGUARD\_HOLD
+        \item Else if hard\_margin enabled and distance $\leq$ hard\_margin: state = GEOGUARD\_VIOLATION
+        \item Else: state = NORMAL
+    \end{itemize}
+    \item \textbf{Debouncing and Hysteresis:}
+    \begin{itemize}
+        \item Collect state votes over N samples (N=3 default)
+        \item Transition to new state only when all N samples agree
+        \item Enforce minimum hold time (200ms) before transitioning from HOLD/VIOLATION back to NORMAL
+    \end{itemize}
+    \item \textbf{Command Override Logic:}
+    \begin{itemize}
+        \item If state = NORMAL: do not modify follow controller commands (passthrough)
+        \item If state = GEOGUARD\_HOLD: set vx = 0 (stop forward motion), preserve vy, vz, yaw
+        \item If state = GEOGUARD\_VIOLATION: set vx = vy = vz = 0 (full stop), preserve yaw only
+        \item Publish overridden command to same topic, which follow node output would have published
+    \end{itemize}
+    \item \textbf{Telemetry and Diagnostics:}
+    \begin{itemize}
+        \item Publish guard status to latched topic for subscriber awareness
+        \item Publish distance to fence, inside/outside boolean, and nearest edge index for visualization
+        \item Publish detailed debug string containing all state variables
+    \end{itemize}
+\end{enumerate}
+\textbf{Key Safety and Edge Cases:}
+\begin{itemize}
+    \item Latched status topic ensures new subscribers immediately receive current guard state
+    \item Debouncing prevents oscillation at boundary transition regions
+    \item Minimum hold time prevents premature re-entry into restricted zone
+    \item Full stop on violation provides last-resort protection against exits
+    \item Yaw preservation during override allows operator to manually reorient without drift
+    \item VIOLATION state takes precedence over HOLD, ensuring strictest enforcement
+\end{itemize}
+
+% ------------------------------------------------------------------
+% CHAPTER VI: CONCLUSION
+% ------------------------------------------------------------------
+\chapter{Conclusion}
+
+\section{Project Summary}
+This project presented the implementation of the \textit{Security-Aware Human Tracking Drone (SAHTD)} prototype as a simulation-first autonomous tracking system. The final prototype integrates a Gazebo Harmonic environment with \ac{PX4} \ac{SITL} to simulate an x500\_mono\_cam drone, and uses ROS~2 Humble as the middleware for modular perception and control. The perception pipeline performs real-time person detection using YOLOv8n and maintains persistent identities using ByteTrack multi-object tracking. An authenticated web system (FastAPI backend + React frontend) enables an authorized operator to log in, select a target ID, and observe real-time telemetry and alerts. Once a target is selected, the follow controller (follow\_node) executes \ac{MAVSDK} offboard control using image-based visual servoing (yaw centering and range control) with a three-zone behavior (FAR/HOVER/NEAR) and safety guards such as lock hysteresis and stale-track handling. A geo-guard module enforces a polygon boundary in the local \ac{ENU} frame by clamping motion when approaching the fence. Functional test cases were executed to validate the main end-to-end workflow from camera input to tracking, selection, following, geo-guard enforcement, alerts, and UI feedback.
+
+\section{Future Work}
+Although the prototype demonstrates the complete runtime pipeline in simulation, several extensions are planned for subsequent phases:
+\begin{itemize}
+    \item \textbf{Deployment hardening:} package the system into a reproducible deployment (e.g., systemd or containers), define stable runtime interfaces (ports/domains), and provide TLS-enabled access for the web UI.
+    \item \textbf{Persistent logging and audit:} store events and telemetry with retention and export capability, and enforce access control for viewing and exporting logs.
+    \item \textbf{Tracking robustness:} reduce identity switches under scale/altitude changes (e.g., improved association, re-identification features, and better camera/altitude tuning).
+    \item \textbf{DenseTrack integration:} implement DenseTrack (or similar dense tracking / association approach) as an additional tracking option to improve continuity under occlusions and rapid motion, and benchmark it against the current ByteTrack pipeline.
+    \item \textbf{Mobile/field operator experience:} extend the UI to a mobile-friendly operator companion and validate usability under realistic usage constraints.
+    \item \textbf{Expanded validation:} add more automated and repeatable integration tests (including rosbag-based replay) and extend functional testing to cover additional edge cases and performance conditions.
+    \item \textbf{Real-world integration:} transition from simulation to hardware by integrating a real onboard computer, real camera feed, and a Pixhawk-based \ac{PX4} deployment while maintaining the same modular ROS~2 architecture.
+\end{itemize}
+
+
+
+
+
+% --- References ---
+\cleardoublepage
+\addcontentsline{toc}{chapter}{References}
+ \bibliography{bibliography}
+
+
+
+% ===================== Appendix A =====================
+\appendix
+\chapter{Questionnaire}
+\label{app:questionnaire}
+
+\noindent This appendix reproduces the 17 questionnaire charts (Q1–Q17).
+
+
+% Q1
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=1\textwidth]{Form Questions/Picture1.jpg}
+\caption{Familiarity with small aerial robots/drones (1 = only seen videos; 5 = used/worked with them) (n = 19).}
+\end{figure}
+
+% Q2
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture2.jpg}
+\caption{Contexts where the assistant could be useful (multiple selections; n = 19).}
+\end{figure}
+
+% Q3
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture3.jpg}
+\caption{“I would feel safer if a small aerial security assistant patrolled in those contexts” (n = 19).}
+\end{figure}
+
+% Q4
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture4.jpg}
+\caption{Outcomes that matter most (choose up to 3): faster alerts, crowd safety, locating a person who needs help, etc. (n = 19).}
+\end{figure}
+
+% Q5
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture5.jpg}
+\caption{Comfort with following a designated person for security purposes (n = 19).}
+\end{figure}
+
+% Q6
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture6.jpg}
+\caption{Who should be allowed to designate a person to follow? (n = 19).}
+\end{figure}
+
+% Q7
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture7.jpg}
+\caption{Preferred stand-off distance when following a person (n = 19).}
+\end{figure}
+
+% Q8
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture8.jpg}
+\caption{Comfort with operating altitude above people in open areas (n = 19).}
+\end{figure}
+
+% Q9
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture9.jpg}
+\caption{Respondent age group (n = 19).}
+\end{figure}
+
+% Q10
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture10.jpg}
+\caption{Respondent role (n = 19).}
+\end{figure}
+
+% Q11
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture11.jpg}
+\caption{Likelihood of supporting local deployment (n = 19).}
+\end{figure}
+
+% Q12
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture12.jpg}
+\caption{Willingness to try the service for one month (n = 19).}
+\end{figure}
+
+% Q13
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture13.jpg}
+\caption{Preferred alert channel when something needs attention (n = 19).}
+\end{figure}
+
+% Q14
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture14.jpg}
+\caption{Maximum acceptable alert delay (incident $\rightarrow$ notification) (n = 19).}
+\end{figure}
+
+% Q15
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture15.jpg}
+\caption{Who should have manual override controls? (multiple selections allowed; n = 19).}
+\end{figure}
+
+% Q16
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture16.jpg}
+\caption{Acceptable operating times (n = 19).}
+\end{figure}
+
+% Q17
+\begin{figure}[!htbp]\centering
+\includegraphics[width=1.05\textwidth]{Form Questions/Picture17.jpg}
+\caption{Preferred visibility of the drone (n = 19).}
+\end{figure}
+
+% =============== Appendix B: Brainstorming ===============
+\chapter{Brainstorming Session Artefacts}
+\label{app:brainstorm}
+
+\subsection*{Session Overview}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Date / Duration} & 28 Aug 2025 \quad|\quad 90 minutes \\ \hline
+\textbf{Format / Tools}  & Online (Microsoft Teams) with digital whiteboard; shared notes in Teams meeting notes / Google Docs \\ \hline
+\textbf{Participants}    & Mohammad Abdrabbu; Abdulrahman Thiab; Fouad Omari \\ \hline
+\textbf{Facilitation}    & Timebox brainstorming ($3\times10$ min), $2\times$ clustering passes, quick prioritization \\ \hline
+\end{tabularx}
+
+\subsection*{Objectives}
+\begin{itemize}[leftmargin=*]
+\item Identify the \textit{must-have} functions for an initial working system.
+\item Elicit quality attributes that make the system safe, usable, and dependable.
+\item Converge on a minimal set of measurable FR/NFR candidates for GP1.
+\end{itemize}
+
+\subsection*{Agenda \& Method}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{00–10} & Warm-up \& problem framing (person detection, tracking, follow, safety) \\ \hline
+\textbf{10–40} & Silent idea generation (brainwriting) — functions \& qualities using digital sticky-notes \\ \hline
+\textbf{40–60} & Affinity clustering — merge/rename clusters; remove duplicates \\ \hline
+\textbf{60–80} & Prioritization — Must / Should / Could for GP1 \\ \hline
+\textbf{80–90} & Decisions; define acceptance metrics to refine later \\ \hline
+\end{tabularx}
+
+\subsection*{Affinity Clusters (Consolidated)}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Perception / Detection.} Real-time person detection, confidence scores, stable output format. 
+\item \textbf{Tracking / \ac{ID}.} Persistent target \ac{ID} across frames; re-acquire after occlusion.
+\item \textbf{Follow Control.} Maintain stand-off distance and altitude band; smooth motion.
+\item \textbf{Safety / Geo-fence.} No-go polygons; minimum separation; boundary hold.
+\item \textbf{Alerts / Notifications.} Target lost/re-acquired; restricted-zone breach; operator-visible feed.
+\item \textbf{Manual Override.} Pause, Resume, Return, Land; immediate acknowledgment.
+\item \textbf{Logging / Audit.} Alerts, commands, status changes, positions with timestamps.
+\item \textbf{Operator UI.} Live video, overlays/IDs, state, geo-fences, alerts; simple navigation.
+\item \textbf{Auth \& Roles.} Login for web/mobile; role-based access to protected actions.
+\end{itemize}
+
+\subsection*{Prioritization to Requirements (Trace)}
+\begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.28\linewidth}|>{\raggedright\arraybackslash}p{0.36\linewidth}|>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Cluster} & \textbf{Must-Haves (GP1)} & \textbf{Mapped Requirement(s)} \\
+\hline
+Perception / Detection & Person detection with boxes \& confidence & FR1; NFR1 (throughput) \\
+\hline
+Tracking / \ac{ID} & Maintain target \ac{ID}; re-acquire & FR3; NFR4 (IDF1), NFR6 (re-acquire) \\
+\hline
+Follow Control & Stand-off \& altitude bands & FR4; NFR5 (following quality), NFR10 (safety distance) \\
+\hline
+Safety / Geo-fence & Ingest/enforce restricted polygons & FR5 \\
+\hline
+Alerts / Notifications & Publish \& display alert events & FR6; NFR2 (alert latency) \\
+\hline
+Manual Override & Pause/Resume/Return/Land (authorized) & FR7; NFR3 (ack latency) \\
+\hline
+Logging / Audit & Timestamped logs of alerts/commands/status/pos & FR8 \\
+\hline
+Operator UI & Live view with overlays/state/geo-fences/alerts & FR9; NFR8 (usability), NFR9 (portability) \\
+\hline
+Auth \& Roles & Login; enforce roles on protected actions & FR10; NFR7 (\ac{RBAC} enforcement) \\
+\hline
+\end{tabularx}
+
+\subsection*{Decisions}
+\begin{itemize}[leftmargin=*]
+\item Keep GP1 scope to \textit{single-drone, single-target} with geo-fence enforcement.
+\item Website + simple mobile app (alerts + basic controls) rather than full desktop console.
+\item \ac{JWT}-based sessions with role claims.
+\end{itemize}
+
+\subsection*{Risks \& Assumptions}
+\begin{itemize}[leftmargin=*]
+\item \textbf{Assumption:} Stable test clips and simulation environments are available for measuring \ac{FPS}, latency, and \ac{IDF1}.
+\item \textbf{Risk:} Limited \ac{GPU} may cap \ac{FPS}; mitigation: lower input resolution, batching off, model choice.
+\item \textbf{Risk:} Alert delivery variability on mobile networks; mitigation: web socket + push fallback, p95 acceptance in NFR2.
+\end{itemize}
+
+% ============ End Appendix B ============
+\end{document}

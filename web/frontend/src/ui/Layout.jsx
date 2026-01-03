@@ -27,7 +27,7 @@ function Layout({ children, currentPage }) {
             <header className="layout-header">
                 <div className="layout-header-content">
                     <div className="layout-brand">
-                        <span className="layout-logo">◆</span>
+                        <img src="/logo.svg" alt="SAHTD Logo" className="layout-logo-img" />
                         <span className="layout-title">SAHTD</span>
                         <span className="layout-subtitle">Operator Dashboard</span>
                     </div>

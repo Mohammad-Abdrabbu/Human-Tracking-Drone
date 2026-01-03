@@ -1,5 +1,7 @@
 // src/App.jsx
 import { Routes, Route, Navigate } from 'react-router-dom';
+import HomePage from './pages/HomePage.jsx';
+import AboutPage from './pages/AboutPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import AppShell from './pages/AppShell.jsx';
 import TelemetryPage from './pages/TelemetryPage.jsx';
@@ -16,7 +18,12 @@ function RequireAuth({ children }) {
 function App() {
   return (
     <Routes>
+      {/* Public routes */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Protected dashboard routes */}
       <Route
         path="/app"
         element={
@@ -41,11 +48,11 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* Default: go to /login */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+
+      {/* Default: go to home */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
 
 export default App;
-

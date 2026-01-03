@@ -1,6 +1,6 @@
 // src/pages/LoginPage.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { saveAuth, isAuthenticated } from '../auth';
 
 import { API_BASE_URL, APP_MODE, toggleEnvironment } from '../config';
@@ -119,6 +119,10 @@ function LoginPage() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
+
+        <div className="login-back">
+          <Link to="/" className="login-back-link">← Back to Home</Link>
+        </div>
       </div>
     </div>
   );
