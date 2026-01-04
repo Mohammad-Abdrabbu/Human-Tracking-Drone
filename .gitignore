@@ -39,7 +39,6 @@ Thumbs.db
 *.db3
 *.bag
 *.mcap
-*.mp4
 bags/
 
 # Event logs (keep folder, ignore data)
