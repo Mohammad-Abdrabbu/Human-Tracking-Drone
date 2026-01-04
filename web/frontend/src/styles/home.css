@@ -230,11 +230,76 @@
 }
 
 .hero-badge-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--status-success);
+  width: 6px;
+  height: 6px;
+  background: var(--brand-primary);
   border-radius: 50%;
-  animation: pulse 2s ease-in-out infinite;
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+.hero-badge-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.hero-vote-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-xs) var(--space-md);
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--brand-primary);
+  border-radius: var(--radius-full);
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  transition: all var(--transition-fast);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  animation: vote-badge-glow 2s ease-in-out infinite;
+}
+
+.hero-vote-badge:hover {
+  background: rgba(59, 130, 246, 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.6);
+}
+
+@keyframes vote-badge-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.7);
+  }
+}
+
+/* Old hero-vote-link for backward compatibility */
+.hero-vote-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-sm);
+  padding: 2px var(--space-xs);
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-size: var(--text-xs);
+  font-weight: var(--font-bold);
+  transition: all var(--transition-fast);
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.hero-vote-link:hover {
+  background: rgba(59, 130, 246, 0.25);
+  transform: scale(1.05);
 }
 
 .hero-title {
@@ -304,6 +369,27 @@
 
 .hero-cta:hover .hero-cta-arrow {
   transform: translateX(4px);
+}
+
+.hero-vote-btn {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  animation: vote-btn-glow 2s ease-in-out infinite;
+}
+
+.hero-vote-btn:hover {
+  box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+}
+
+@keyframes vote-btn-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+  }
 }
 
 /* Hero Visual - Tracking Scene */
@@ -715,6 +801,60 @@
     opacity: 0.6;
     height: 100px;
   }
+}
+
+/* ===== Video Demo Section ===== */
+.video-demo-section {
+  padding: var(--space-4xl) 0;
+  background: transparent;
+}
+
+.video-wrapper {
+  max-width: 700px;
+  margin: var(--space-2xl) auto 0;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: var(--bg-primary);
+}
+
+.demo-video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #000;
+}
+
+/* Fallback for old footer-cta for backward compatibility */
+.footer-cta {
+  padding: var(--space-4xl) 0;
+  text-align: center;
+  background: var(--bg-secondary);
+}
+
+.team-section {
+  padding: var(--space-4xl) 0;
+  text-align: center;
+  background: var(--bg-secondary);
+}
+
+.footer-cta-title {
+  font-size: var(--text-3xl);
+  font-weight: var(--font-bold);
+  margin-bottom: var(--space-md);
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-cta-description {
+  font-size: var(--text-lg);
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2xl);
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ===== Section Containers ===== */

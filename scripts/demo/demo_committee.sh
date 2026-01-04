@@ -161,9 +161,9 @@ spawn_standing_humans() {
     
     # Positions inside fence (x=[1,15], y=[-8,8])
     local positions=(
-        "6.0 2.0 0.0"      # person_stand_1
-        "10.0 -2.0 0.0"    # person_stand_2
-        "8.0 5.0 0.0"      # person_stand_3
+        "6.0 2.0 0.0"      # standing_human_1
+        "10.0 -2.0 0.0"    # standing_human_2
+        "8.0 5.0 0.0"      # standing_human_3
     )
     
     local spawned=0
@@ -175,7 +175,7 @@ spawn_standing_humans() {
         
         local idx=$((i - 1))
         read -r x y z <<< "${positions[$idx]}"
-        local name="person_stand_$i"
+        local name="standing_human_$i"
         
         echo -n "  $name at ($x, $y)... "
         
@@ -187,7 +187,7 @@ spawn_standing_humans() {
             echo -e "${GREEN}✓${NC}"
             ((spawned++))
         else
-            echo -e "${RED}✗${NC}"
+            echo -e "${RED}✗ (spawn failed)${NC}"
         fi
     done
     

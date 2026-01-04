@@ -1,5 +1,5 @@
 // src/pages/HomePage.jsx
-import { useRef, useLayoutEffect } from 'react';
+import { useRef, useLayoutEffect, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -8,6 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 function HomePage() {
     const component = useRef(null);
+    const videoRef = useRef(null); // Added videoRef
 
     useLayoutEffect(() => {
         let ctx = gsap.context(() => {
@@ -137,6 +138,31 @@ function HomePage() {
         return () => ctx.revert();
     }, []);
 
+    // Video auto-play on scroll
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        video.play().catch(err => console.log('Video play failed:', err));
+                    } else {
+                        video.pause();
+                    }
+                });
+            },
+            { threshold: 0.5 } // Play when 50% visible
+        );
+
+        observer.observe(video);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, []);
+
     return (
         <div className="home-page" ref={component}>
             {/* Floating Vote Button */}
@@ -180,7 +206,7 @@ function HomePage() {
                     </h1>
 
                     <p className="hero-description">
-                        An autonomous UAV that detects, tracks, and follows designated persons
+                        An autonomous UAV that detects, tracks, and follows designated people
                         with geo-fencing safety and real-time monitoring.
                     </p>
 
@@ -192,6 +218,14 @@ function HomePage() {
                         <Link to="/about" className="btn btn--secondary btn--lg">
                             Learn More
                         </Link>
+                        <a
+                            href="https://padlet.com/izzmatar/fit-expo-2025-1-cof44zd77fup1mml/wish/yEPVZkn5pxvRQb0Y"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn--secondary btn--lg hero-vote-btn"
+                        >
+                            صوّتوا إلنا🗳️
+                        </a>
                     </div>
                 </div>
 
@@ -394,6 +428,31 @@ function HomePage() {
                 </div>
             </section>
 
+
+            {/* Video Demo Section */}
+            <section className="video-demo-section">
+                <div className="section-container">
+                    <h2 className="section-title">See It In Action</h2>
+                    <p className="section-subtitle">
+                        Watch our demonstration video showcasing the SAHTD in operation
+                    </p>
+                    <div className="video-wrapper">
+                        <video
+                            ref={videoRef}
+                            className="demo-video"
+                            muted
+                            loop
+                            playsInline
+                            poster="/video-poster.jpg"
+                        >
+                            <source src="/demo.mp4" type="video/mp4" />
+                            <source src="/demo.webm" type="video/webm" />
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+            </section>
+
             {/* Team Section */}
             <section className="team-section">
                 <div className="section-container">
@@ -429,19 +488,6 @@ function HomePage() {
                         <span className="supervisor-label">Supervised by</span>
                         <span className="supervisor-name">Dr. Abdelkarem Al-Banna</span>
                     </div>
-                </div>
-            </section>
-
-            {/* Footer CTA */}
-            <section className="footer-cta">
-                <div className="section-container">
-                    <h2 className="footer-cta-title">Ready to see it in action?</h2>
-                    <p className="footer-cta-description">
-                        Experience the live dashboard with real-time telemetry, alerts, and drone visualization.
-                    </p>
-                    <Link to="/login" className="btn btn--primary btn--lg">
-                        Enter Dashboard →
-                    </Link>
                 </div>
             </section>
 
