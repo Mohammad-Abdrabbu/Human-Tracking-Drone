@@ -440,9 +440,11 @@ function HomePage() {
                         <video
                             ref={videoRef}
                             className="demo-video"
+                            autoPlay
                             muted
                             loop
                             playsInline
+                            webkit-playsinline="true"
                             poster="/video-poster.jpg"
                         >
                             <source src="/demo.mp4" type="video/mp4" />

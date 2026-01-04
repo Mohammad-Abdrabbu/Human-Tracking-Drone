@@ -179,16 +179,22 @@ spawn_standing_humans() {
         
         echo -n "  $name at ($x, $y)... "
         
+        # Debug: Show exact command
+        local req_string="sdf_filename: \"$model_path\", name: \"$name\", allow_renaming: true, pose: {position: {x: $x, y: $y, z: $z}}"
+        
         if gz service -s /world/$world/create \
             --reqtype gz.msgs.EntityFactory \
             --reptype gz.msgs.Boolean \
             --timeout 5000 \
-            --req "sdf_filename: \"$model_path\", name: \"$name\", allow_renaming: true, pose: {position: {x: $x, y: $y, z: $z}}" 2>/dev/null; then
+            --req "$req_string"; then
             echo -e "${GREEN}✓${NC}"
             ((spawned++))
         else
-            echo -e "${RED}✗ (spawn failed)${NC}"
+            echo -e "${RED}✗ (spawn failed - see error above)${NC}"
         fi
+        
+        # Wait between spawns to avoid overwhelming Gazebo
+        sleep 1
     done
     
     # Log event
