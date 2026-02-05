@@ -344,6 +344,5 @@ You should see:
 **Team:**
 - Mohammad Ramadan Ahmed Abdrabbu
 - Abdulrahman Wael Suleiman Thiab
-- Fouad Mohammad Ali Omari
 
 **Supervisor:** Dr. Abdelkarem Al-Banna
